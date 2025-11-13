@@ -110,8 +110,8 @@ export const FarmRenderer = ({
   // Render buildings
   const renderBuildings = () => {
     return farm.buildings.map((building) => {
-      const pos = getPositionCoordinates(building.position as any);
-      const transformed = transformPoint(pos.x, pos.y);
+      // Building position is a Point object, not a string
+      const transformed = transformPoint(building.position.x, building.position.y);
 
       const iconMap: Record<string, string> = {
         'house': '🏠',
