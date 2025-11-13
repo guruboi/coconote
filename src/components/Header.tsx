@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '@/stores/userStore';
 // import { useThemeStore } from '@/stores/themeStore';
 
 export const Header = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout, getUnreadCount } = useUserStore();
   // const { theme, setTheme } = useThemeStore(); // Will be used for theme toggle later
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -28,6 +29,21 @@ export const Header = () => {
     { label: 'Contacts', action: () => navigate('/contacts') },
     { label: 'Logout', action: handleLogout, danger: true },
   ];
+
+  const navItems = [
+    { label: 'Farms', path: '/', icon: '🌾' },
+    { label: 'Finance', path: '/finance', icon: '💰' },
+    { label: 'Market', path: '/market', icon: '📊' },
+    { label: 'News', path: '/news', icon: '📰' },
+    { label: 'Calendar', path: '/calendar', icon: '📅' },
+  ];
+
+  const isActiveRoute = (path: string) => {
+    if (path === '/') {
+      return location.pathname === '/' || location.pathname.startsWith('/farm');
+    }
+    return location.pathname === path;
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-pearl dark:bg-bg-dark-alt shadow-md">
@@ -190,6 +206,26 @@ export const Header = () => {
               </AnimatePresence>
             </div>
           </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-2">
+          <nav className="flex gap-1 overflow-x-auto">
+            {navItems.map((item) => (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                  isActiveRoute(item.path)
+                    ? 'bg-farm-green-600 text-pearl'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
         </div>
       </div>
     </header>
