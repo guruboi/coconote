@@ -14,6 +14,31 @@ export const FarmView = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editingName, setEditingName] = useState('');
   const [editingDescription, setEditingDescription] = useState('');
+  const [showAddBuilding, setShowAddBuilding] = useState(false);
+  const [showAddPlant, setShowAddPlant] = useState(false);
+  const [showAddElement, setShowAddElement] = useState(false);
+
+  // Building form state
+  const [buildingType, setBuildingType] = useState<'house' | 'livestock-shed' | 'storage' | 'motor-room'>('house');
+  const [buildingName, setBuildingName] = useState('');
+  const [buildingWidth, setBuildingWidth] = useState('');
+  const [buildingHeight, setBuildingHeight] = useState('');
+
+  // Plant form state
+  const [plantConfigName, setPlantConfigName] = useState('');
+  const [plantCategory, setPlantCategory] = useState<'tree' | 'plant' | 'crop'>('tree');
+  const [plantType, setPlantType] = useState('');
+  const [plantRows, setPlantRows] = useState('');
+  const [plantColumns, setPlantColumns] = useState('');
+  const [plantSpacingRows, setPlantSpacingRows] = useState('');
+  const [plantSpacingColumns, setPlantSpacingColumns] = useState('');
+  const [plantLayer, setPlantLayer] = useState(1);
+
+  // Element form state
+  const [elementType, setElementType] = useState<'well' | 'borewell' | 'bee-box' | 'electricity-post' | 'pit' | 'livestock'>('well');
+  const [elementName, setElementName] = useState('');
+  const [elementQuantity, setElementQuantity] = useState('');
+  const [elementNotes, setElementNotes] = useState('');
 
   useEffect(() => {
     if (!farm) {
@@ -74,6 +99,129 @@ export const FarmView = () => {
         otherElements: farm.otherElements.filter(e => e.id !== elementId),
       });
     }
+  };
+
+  // Calculate farm center from boundary points
+  const getFarmCenter = () => {
+    if (!farm || farm.boundary.points.length === 0) {
+      return { x: 600, y: 350 }; // Default center
+    }
+    const points = farm.boundary.points;
+    const sumX = points.reduce((sum, p) => sum + p.x, 0);
+    const sumY = points.reduce((sum, p) => sum + p.y, 0);
+    return {
+      x: sumX / points.length,
+      y: sumY / points.length,
+    };
+  };
+
+  const handleAddBuilding = () => {
+    if (!farm || !buildingName.trim() || !buildingWidth || !buildingHeight) return;
+
+    const center = getFarmCenter();
+    const newBuilding = {
+      id: `building-${Date.now()}`,
+      type: buildingType,
+      name: buildingName.trim(),
+      position: center,
+      size: {
+        width: parseFloat(buildingWidth),
+        height: parseFloat(buildingHeight),
+      },
+      direction: 'north' as const,
+    };
+
+    updateFarm(farm.id, {
+      buildings: [...farm.buildings, newBuilding],
+    });
+
+    // Clear form and close modal
+    setBuildingName('');
+    setBuildingWidth('');
+    setBuildingHeight('');
+    setBuildingType('house');
+    setShowAddBuilding(false);
+  };
+
+  const handleAddPlant = () => {
+    if (!farm || !plantConfigName.trim() || !plantType.trim() ||
+        !plantRows || !plantColumns || !plantSpacingRows || !plantSpacingColumns) return;
+
+    const center = getFarmCenter();
+    const newConfig = {
+      id: `config-${Date.now()}`,
+      name: plantConfigName.trim(),
+      category: plantCategory,
+      plantType: plantType.trim(),
+      rows: parseInt(plantRows),
+      columns: parseInt(plantColumns),
+      spacingBetweenRows: parseFloat(plantSpacingRows),
+      spacingBetweenColumns: parseFloat(plantSpacingColumns),
+      startingCorner: center,
+      layer: plantLayer,
+    };
+
+    // Generate individual plants for this configuration
+    const newPlants = [];
+    const rows = parseInt(plantRows);
+    const cols = parseInt(plantColumns);
+    const spacingRows = parseFloat(plantSpacingRows);
+    const spacingCols = parseFloat(plantSpacingColumns);
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        newPlants.push({
+          id: `plant-${Date.now()}-${row}-${col}`,
+          configId: newConfig.id,
+          position: {
+            x: center.x + (col * spacingCols * 3), // Convert feet to pixels (approximate)
+            y: center.y + (row * spacingRows * 3),
+          },
+          layer: plantLayer,
+        });
+      }
+    }
+
+    updateFarm(farm.id, {
+      plantConfigurations: [...farm.plantConfigurations, newConfig],
+      plants: [...farm.plants, ...newPlants],
+    });
+
+    // Clear form and close modal
+    setPlantConfigName('');
+    setPlantType('');
+    setPlantRows('');
+    setPlantColumns('');
+    setPlantSpacingRows('');
+    setPlantSpacingColumns('');
+    setPlantCategory('tree');
+    setPlantLayer(1);
+    setShowAddPlant(false);
+  };
+
+  const handleAddElement = () => {
+    if (!farm || !elementName.trim()) return;
+
+    const center = getFarmCenter();
+    const newElement = {
+      id: `element-${Date.now()}`,
+      type: elementType,
+      name: elementName.trim(),
+      quantity: elementQuantity ? parseInt(elementQuantity) : undefined,
+      position: center,
+      notes: elementNotes.trim() || undefined,
+    };
+
+    updateFarm(farm.id, {
+      otherElements: [...farm.otherElements, newElement],
+    });
+
+    // Clear form and close modal
+    setElementName('');
+    setElementQuantity('');
+    setElementNotes('');
+    setElementType('well');
+    setShowAddElement(false);
   };
 
   return (
@@ -322,6 +470,39 @@ export const FarmView = () => {
                   ✏️ Edit Farm
                 </h2>
 
+                {/* Add Elements Section */}
+                <div className="mb-6 p-4 bg-farm-green-50 dark:bg-farm-green-900/20 border border-farm-green-500 rounded-lg">
+                  <h3 className="text-lg font-semibold text-farm-green-800 dark:text-farm-green-300 mb-3">
+                    ➕ Add Elements
+                  </h3>
+                  <p className="text-sm text-farm-green-700 dark:text-farm-green-400 mb-4">
+                    Search and add buildings, plants, or other elements to your farm. Drag them to position on the grid.
+                  </p>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setShowAddBuilding(true)}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-left flex items-center space-x-3 border border-gray-200 dark:border-gray-600"
+                    >
+                      <span className="text-2xl">🏠</span>
+                      <span>Add Building</span>
+                    </button>
+                    <button
+                      onClick={() => setShowAddPlant(true)}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-left flex items-center space-x-3 border border-gray-200 dark:border-gray-600"
+                    >
+                      <span className="text-2xl">🌴</span>
+                      <span>Add Plants/Trees</span>
+                    </button>
+                    <button
+                      onClick={() => setShowAddElement(true)}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-left flex items-center space-x-3 border border-gray-200 dark:border-gray-600"
+                    >
+                      <span className="text-2xl">💧</span>
+                      <span>Add Other Elements</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Edit Farm Info */}
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
@@ -485,6 +666,343 @@ export const FarmView = () => {
                 </div>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Add Building Modal */}
+        <AnimatePresence>
+          {showAddBuilding && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-md w-full shadow-2xl"
+              >
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                  Add Building
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Building Type
+                    </label>
+                    <select
+                      value={buildingType}
+                      onChange={(e) => setBuildingType(e.target.value as any)}
+                      className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    >
+                      <option value="house">House</option>
+                      <option value="livestock-shed">Livestock Shed</option>
+                      <option value="storage">Storage</option>
+                      <option value="motor-room">Motor Room</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Building Name
+                    </label>
+                    <input
+                      type="text"
+                      value={buildingName}
+                      onChange={(e) => setBuildingName(e.target.value)}
+                      placeholder="e.g., Main House, Barn, etc."
+                      className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Width (cents)
+                      </label>
+                      <input
+                        type="number"
+                        value={buildingWidth}
+                        onChange={(e) => setBuildingWidth(e.target.value)}
+                        placeholder="10"
+                        min="0"
+                        step="0.1"
+                        className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Height (cents)
+                      </label>
+                      <input
+                        type="number"
+                        value={buildingHeight}
+                        onChange={(e) => setBuildingHeight(e.target.value)}
+                        placeholder="10"
+                        min="0"
+                        step="0.1"
+                        className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowAddBuilding(false)}
+                    className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddBuilding}
+                    disabled={!buildingName.trim() || !buildingWidth || !buildingHeight}
+                    className="flex-1 px-4 py-3 bg-farm-green-600 text-pearl rounded-lg hover:bg-farm-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Add Building
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Add Plant/Tree Modal */}
+        <AnimatePresence>
+          {showAddPlant && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+              >
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                  Add Plants/Trees
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Configuration Name
+                    </label>
+                    <input
+                      type="text"
+                      value={plantConfigName}
+                      onChange={(e) => setPlantConfigName(e.target.value)}
+                      placeholder="e.g., Coconut Section A"
+                      className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Category
+                    </label>
+                    <select
+                      value={plantCategory}
+                      onChange={(e) => setPlantCategory(e.target.value as any)}
+                      className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    >
+                      <option value="tree">Tree</option>
+                      <option value="plant">Plant</option>
+                      <option value="crop">Crop</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Plant Type
+                    </label>
+                    <input
+                      type="text"
+                      value={plantType}
+                      onChange={(e) => setPlantType(e.target.value)}
+                      placeholder="e.g., Coconut, Mango, Pepper"
+                      className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Rows
+                      </label>
+                      <input
+                        type="number"
+                        value={plantRows}
+                        onChange={(e) => setPlantRows(e.target.value)}
+                        placeholder="10"
+                        min="1"
+                        className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Columns
+                      </label>
+                      <input
+                        type="number"
+                        value={plantColumns}
+                        onChange={(e) => setPlantColumns(e.target.value)}
+                        placeholder="10"
+                        min="1"
+                        className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Row Spacing (ft)
+                      </label>
+                      <input
+                        type="number"
+                        value={plantSpacingRows}
+                        onChange={(e) => setPlantSpacingRows(e.target.value)}
+                        placeholder="20"
+                        min="0"
+                        step="0.1"
+                        className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Column Spacing (ft)
+                      </label>
+                      <input
+                        type="number"
+                        value={plantSpacingColumns}
+                        onChange={(e) => setPlantSpacingColumns(e.target.value)}
+                        placeholder="20"
+                        min="0"
+                        step="0.1"
+                        className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      />
+                    </div>
+                  </div>
+                  {farm?.farmingType === 'multilayer' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Layer
+                      </label>
+                      <select
+                        value={plantLayer}
+                        onChange={(e) => setPlantLayer(parseInt(e.target.value))}
+                        className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      >
+                        {Array.from({ length: 5 }, (_, i) => i + 1).map((layer) => (
+                          <option key={layer} value={layer}>
+                            Layer {layer}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowAddPlant(false)}
+                    className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddPlant}
+                    disabled={
+                      !plantConfigName.trim() ||
+                      !plantType.trim() ||
+                      !plantRows ||
+                      !plantColumns ||
+                      !plantSpacingRows ||
+                      !plantSpacingColumns
+                    }
+                    className="flex-1 px-4 py-3 bg-farm-green-600 text-pearl rounded-lg hover:bg-farm-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Add Plants
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Add Other Element Modal */}
+        <AnimatePresence>
+          {showAddElement && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-md w-full shadow-2xl"
+              >
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                  Add Other Element
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Element Type
+                    </label>
+                    <select
+                      value={elementType}
+                      onChange={(e) => setElementType(e.target.value as any)}
+                      className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    >
+                      <option value="well">Well</option>
+                      <option value="borewell">Borewell</option>
+                      <option value="bee-box">Bee Box</option>
+                      <option value="electricity-post">Electricity Post</option>
+                      <option value="pit">Pit</option>
+                      <option value="livestock">Livestock</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={elementName}
+                      onChange={(e) => setElementName(e.target.value)}
+                      placeholder="e.g., Main Well, Honey Bees"
+                      className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Quantity (optional)
+                    </label>
+                    <input
+                      type="number"
+                      value={elementQuantity}
+                      onChange={(e) => setElementQuantity(e.target.value)}
+                      placeholder="1"
+                      min="1"
+                      className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Notes (optional)
+                    </label>
+                    <textarea
+                      value={elementNotes}
+                      onChange={(e) => setElementNotes(e.target.value)}
+                      placeholder="Add any notes about this element..."
+                      rows={3}
+                      className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowAddElement(false)}
+                    className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddElement}
+                    disabled={!elementName.trim()}
+                    className="flex-1 px-4 py-3 bg-farm-green-600 text-pearl rounded-lg hover:bg-farm-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Add Element
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>
