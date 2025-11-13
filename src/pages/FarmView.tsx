@@ -474,9 +474,12 @@ export const FarmView = () => {
                   </div>
                 )}
 
-                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <p className="text-sm text-blue-800 dark:text-blue-400">
-                    <strong>Edit Mode:</strong> Update farm information and manage farm elements. Click on any element's delete button to remove it from the farm.
+                <div className="mt-6 p-4 bg-farm-green-50 dark:bg-farm-green-900/20 border border-farm-green-500 rounded-lg">
+                  <p className="text-sm text-farm-green-800 dark:text-farm-green-300 font-semibold mb-2">
+                    🎯 Position Your Elements
+                  </p>
+                  <p className="text-sm text-farm-green-700 dark:text-farm-green-400">
+                    Drag and drop buildings, plants, and other elements directly on the farm to position them. Click elements to select them, then delete if needed.
                   </p>
                 </div>
               </div>

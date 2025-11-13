@@ -19,7 +19,7 @@ const FORM_STEPS = [
 
 export const FarmCreate = () => {
   const navigate = useNavigate();
-  const { addFarm } = useFarmStore();
+  const { addFarm, setMode } = useFarmStore();
   const [currentStep, setCurrentStep] = useState(1);
 
   // Form state - Step 1: Basic Info
@@ -403,7 +403,8 @@ export const FarmCreate = () => {
     };
 
     addFarm(newFarm as any); // TODO: Fix type
-    navigate('/');
+    setMode('edit'); // Open in Edit Mode for drag-and-drop positioning
+    navigate('/farm-view');
   };
 
   const renderStepContent = () => {
