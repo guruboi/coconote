@@ -1,11 +1,16 @@
 import { useFarmStore } from '@/stores/farmStore';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { FarmRenderer } from '@/components/FarmRenderer';
 
 export const FarmView = () => {
   const navigate = useNavigate();
-  const { getCurrentFarm, viewState, setMode } = useFarmStore();
+  const { getCurrentFarm, viewState, setMode, setSelectedLayer } = useFarmStore();
   const farm = getCurrentFarm();
+
+  const [showGrid, setShowGrid] = useState(false);
+  const [showStats, setShowStats] = useState(true);
 
   useEffect(() => {
     if (!farm) {
@@ -15,18 +20,38 @@ export const FarmView = () => {
 
   if (!farm) return null;
 
+  const totalPlants = farm.plantConfigurations.reduce(
+    (sum, config) => sum + (config.rows * config.columns),
+    0
+  );
+
+  const handleLayerChange = (layer: number) => {
+    setSelectedLayer(layer);
+  };
+
   return (
     <div className="min-h-screen bg-frost dark:bg-bg-dark">
       <div className="p-6">
+        {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-            {farm.name}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">{farm.description}</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+                {farm.name}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">{farm.description}</p>
+            </div>
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              ← Back to Farms
+            </button>
+          </div>
         </div>
 
         {/* Mode selector */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-wrap gap-3 mb-6">
           {(['view', 'edit', 'pipeline', 'livestock'] as const).map((mode) => (
             <button
               key={mode}
@@ -34,20 +59,162 @@ export const FarmView = () => {
               className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
                 viewState.mode === mode
                   ? 'bg-farm-green-600 text-pearl'
-                  : 'bg-pearl dark:bg-bg-dark-alt text-gray-700 dark:text-gray-300 hover:bg-farm-green-100'
+                  : 'bg-pearl dark:bg-bg-dark-alt text-gray-700 dark:text-gray-300 hover:bg-farm-green-100 dark:hover:bg-gray-700'
               }`}
             >
               {mode.charAt(0).toUpperCase() + mode.slice(1)} Mode
             </button>
           ))}
+
+          {/* Layer selector for multilayer farming */}
+          {farm.farmingType === 'multilayer' && (
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-sm text-gray-600 dark:text-gray-400">Layer:</span>
+              {Array.from({ length: 5 }, (_, i) => i + 1).map((layer) => (
+                <button
+                  key={layer}
+                  onClick={() => handleLayerChange(layer)}
+                  className={`w-10 h-10 rounded-lg font-semibold transition-colors ${
+                    viewState.selectedLayer === layer
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {layer}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Farm canvas area - placeholder */}
-        <div className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-8 min-h-[600px] flex items-center justify-center">
-          <p className="text-gray-500 dark:text-gray-400">
-            Farm View Canvas - Coming Soon
-          </p>
+        {/* Controls */}
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={() => setShowGrid(!showGrid)}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              showGrid
+                ? 'bg-farm-green-600 text-pearl'
+                : 'bg-pearl dark:bg-bg-dark-alt text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            {showGrid ? '✓' : '○'} Grid
+          </button>
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              showStats
+                ? 'bg-farm-green-600 text-pearl'
+                : 'bg-pearl dark:bg-bg-dark-alt text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            {showStats ? '✓' : '○'} Stats
+          </button>
         </div>
+
+        {/* Farm canvas area */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-pearl dark:bg-bg-dark-alt rounded-xl overflow-hidden shadow-lg"
+        >
+          <FarmRenderer
+            farm={farm}
+            width={1200}
+            height={700}
+            showGrid={showGrid}
+            currentLayer={viewState.selectedLayer}
+          />
+        </motion.div>
+
+        {/* Farm statistics */}
+        {showStats && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            <div className="bg-pearl dark:bg-bg-dark-alt rounded-lg p-4">
+              <div className="text-2xl mb-1">🏗️</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                {farm.buildings.length}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Buildings</div>
+            </div>
+
+            <div className="bg-pearl dark:bg-bg-dark-alt rounded-lg p-4">
+              <div className="text-2xl mb-1">🌳</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                {totalPlants}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Total Plants/Trees
+              </div>
+            </div>
+
+            <div className="bg-pearl dark:bg-bg-dark-alt rounded-lg p-4">
+              <div className="text-2xl mb-1">📐</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                {farm.plantConfigurations.length}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Plant Configurations
+              </div>
+            </div>
+
+            <div className="bg-pearl dark:bg-bg-dark-alt rounded-lg p-4">
+              <div className="text-2xl mb-1">📍</div>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                {farm.otherElements.length}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Other Elements
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Plant configurations list */}
+        {farm.plantConfigurations.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-6"
+          >
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+              Plant Configurations
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {farm.plantConfigurations.map((config) => (
+                <div
+                  key={config.id}
+                  className="bg-pearl dark:bg-bg-dark-alt rounded-lg p-4 border border-gray-200 dark:border-gray-700"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">
+                      {config.category === 'tree' ? '🌴' :
+                       config.category === 'plant' ? '🌿' : '🌾'}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-800 dark:text-gray-100">
+                        {config.name}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {config.plantType}
+                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-500">
+                        <div>Grid: {config.rows}×{config.columns} = {config.rows * config.columns} plants</div>
+                        <div>Spacing: {config.spacingBetweenRows}ft × {config.spacingBetweenColumns}ft</div>
+                        {farm.farmingType === 'multilayer' && <div>Layer: {config.layer}</div>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

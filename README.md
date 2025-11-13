@@ -34,18 +34,32 @@ A modern, feature-rich Progressive Web App for managing farms in Coimbatore, Tam
   - Step 7: Plants & trees (rows, columns, spacing, layers)
   - Step 8: Other elements (wells, borewells, bee boxes, livestock, etc.)
 - **Interactive Boundary Tracer** - Click-to-trace farm boundaries on FMB sketches with area calculation
+- **Top-Down Farm Renderer** - SVG-based visualization with:
+  - Farm boundary display with fencing indicator
+  - Buildings with custom icons and labels
+  - Plant/tree grids (smart rendering for large farms)
+  - Water sources, livestock, and other elements
+  - Entry point marking
+  - Road borders visualization
+  - Layer switching for multilayer farming
+  - Grid toggle and statistics panel
+  - Mode switching (View, Edit, Pipeline, Livestock)
+- **Farm Statistics Dashboard** - Real-time stats showing:
+  - Total buildings, plants, and other elements
+  - Individual plant configuration details
 - **Farm List View** - View all your farms
 - **Finance Dashboard** - Track expenses, income, profit
 - **Responsive Design** - Works on all devices
 
 ### 🚧 Coming Soon
-- Top-down drone view of farm (RPG-style rendering)
-- 4 farm modes: View, Edit, Pipeline, Livestock
-- Multilayer farming visualization
+- Edit Mode functionality (move, resize, delete elements)
+- Pipeline Mode (irrigation system visualization)
+- Livestock Mode (animal tracking and management)
 - TNGIS API integration for maps
 - Market updates & weather forecasts
 - Calendar & task management
 - User authentication (login/register)
+- Backend API with FastAPI + PostgreSQL
 
 ## 🛠️ Installation
 
@@ -183,7 +197,11 @@ If you encounter any problems:
 - [x] Boundary tracing tool
 - [x] Building placement & configuration
 - [x] Plant/tree grid calculator
-- [ ] Top-down farm renderer
+- [x] Top-down farm renderer
+- [x] Layer switching for multilayer farms
+- [ ] Edit Mode (move/resize/delete elements)
+- [ ] Pipeline Mode (irrigation visualization)
+- [ ] Livestock Mode (animal management)
 - [ ] TNGIS map integration
 - [ ] Backend API (FastAPI)
 - [ ] User authentication

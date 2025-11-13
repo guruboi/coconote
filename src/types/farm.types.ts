@@ -55,17 +55,15 @@ export interface Building {
 export interface PlantConfiguration {
   id: string;
   name: string;
-  type: 'tree' | 'plant'; // tree for big trees, plant for small plants
-  quantity: number;
+  category: 'tree' | 'plant' | 'crop'; // category of the plant
+  plantType: string; // specific type (e.g., "Coconut", "Chilli", "Teak")
   rows: number;
   columns: number;
-  spacing: {
-    rowSpacing: number; // in feet
-    columnSpacing: number; // in feet
-  };
-  startFrom: Direction; // from which side to start planting
-  placement?: 'grid' | 'border'; // grid for normal planting, border for around farm
-  layer?: number; // for multilayer farming (1, 2, 3, etc.)
+  spacingBetweenRows: number; // in feet
+  spacingBetweenColumns: number; // in feet
+  startingCorner: string; // corner to start planting from
+  layer: number; // for multilayer farming (1, 2, 3, etc.)
+  plantingDate?: string; // ISO date string
 }
 
 // Individual plant/tree instance
@@ -154,8 +152,10 @@ export interface LivestockEnclosure {
 // Other farm elements
 export interface FarmElement {
   id: string;
-  type: 'electricity-post' | 'pit' | 'bee-box' | 'path';
-  position: Point;
+  type: 'well' | 'borewell' | 'bee-box' | 'electricity-post' | 'pit' | 'livestock' | 'path';
+  name: string; // descriptive name for the element
+  quantity?: number; // number of this element
+  position: Point | string; // Point for precise location, string for general area
   size?: { width: number; height: number };
   points?: Point[]; // for paths
   locked?: boolean; // for edit mode
