@@ -2,11 +2,13 @@ import { motion } from 'framer-motion';
 import { useFarmStore } from '@/stores/farmStore';
 import { useUserStore } from '@/stores/userStore';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
 export const Home = () => {
   const navigate = useNavigate();
-  const { farms, setCurrentFarm } = useFarmStore();
+  const { farms, setCurrentFarm, deleteFarm } = useFarmStore();
   const { user } = useUserStore();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const handleAddFarm = () => {
     navigate('/farm/create');
@@ -16,6 +18,13 @@ export const Home = () => {
     setCurrentFarm(farmId);
     navigate('/farm/view');
   };
+
+  const handleDeleteFarm = (farmId: string) => {
+    deleteFarm(farmId);
+    setDeleteConfirmId(null);
+  };
+
+  const farmToDelete = farms.find(f => f.id === deleteConfirmId);
 
   return (
     <div className="min-h-screen bg-frost dark:bg-bg-dark p-6">
@@ -68,27 +77,77 @@ export const Home = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ y: -4 }}
-                  onClick={() => handleSelectFarm(farm.id)}
-                  className="bg-pearl dark:bg-bg-dark-alt p-6 rounded-xl shadow-lg cursor-pointer
-                             border-2 border-transparent hover:border-farm-green-500 transition-all"
+                  className="bg-pearl dark:bg-bg-dark-alt p-6 rounded-xl shadow-lg
+                             border-2 border-transparent hover:border-farm-green-500 transition-all relative group"
                 >
-                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">
-                    {farm.name}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
-                    {farm.description || 'No description'}
-                  </p>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-700 dark:text-gray-300">
-                      {farm.boundary.area} acres
-                    </span>
-                    <span className="text-farm-green-600 font-semibold">
-                      {farm.farmingType}
-                    </span>
+                  {/* Delete button - shows on hover */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteConfirmId(farm.id);
+                    }}
+                    className="absolute top-4 right-4 w-8 h-8 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400
+                               rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all
+                               opacity-0 group-hover:opacity-100 flex items-center justify-center"
+                    title="Delete farm"
+                  >
+                    🗑️
+                  </button>
+
+                  <div onClick={() => handleSelectFarm(farm.id)} className="cursor-pointer">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 pr-8">
+                      {farm.name}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
+                      {farm.description || 'No description'}
+                    </p>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700 dark:text-gray-300">
+                        {farm.boundary.area} acres
+                      </span>
+                      <span className="text-farm-green-600 font-semibold">
+                        {farm.farmingType}
+                      </span>
+                    </div>
                   </div>
                 </motion.div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        {deleteConfirmId && farmToDelete && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <div className="text-center">
+                <div className="text-5xl mb-4">⚠️</div>
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+                  Delete Farm?
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  Are you sure you want to delete <strong>{farmToDelete.name}</strong>? This action cannot be undone. All farm data including buildings, plants, and configurations will be permanently deleted.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDeleteConfirmId(null)}
+                    className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDeleteFarm(deleteConfirmId)}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                  >
+                    Delete Farm
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
         )}
       </div>
