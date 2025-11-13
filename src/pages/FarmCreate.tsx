@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FormSteps } from '@/components/FormSteps';
+import { BoundaryTracer } from '@/components/BoundaryTracer';
 import { useFarmStore } from '@/stores/farmStore';
-import type { Direction, FarmingType, SoilType, Alignment } from '@/types/farm.types';
+import type { Direction, FarmingType, SoilType, Alignment, Point } from '@/types/farm.types';
 
 const FORM_STEPS = [
   { number: 1, title: 'Basic Info', description: 'Name and description' },
@@ -33,6 +34,9 @@ export const FarmCreate = () => {
   // Form state - Step 3: FMB Sketch
   const [fmbFile, setFmbFile] = useState<File | null>(null);
   const [fmbPreview, setFmbPreview] = useState<string | null>(null);
+  const [showBoundaryTracer, setShowBoundaryTracer] = useState(false);
+  const [boundaryPoints, setBoundaryPoints] = useState<Point[]>([]);
+  const [_tracedArea, setTracedArea] = useState<number>(0); // Will be used for area validation later
 
   // Form state - Step 4: Farm Details
   const [isFenced, setIsFenced] = useState(false);
@@ -65,6 +69,24 @@ export const FarmCreate = () => {
     );
   };
 
+  const handleStartBoundaryTrace = () => {
+    if (fmbPreview) {
+      setShowBoundaryTracer(true);
+    }
+  };
+
+  const handleBoundaryTraceComplete = (points: Point[], pixelArea: number) => {
+    setBoundaryPoints(points);
+    setTracedArea(pixelArea);
+    setShowBoundaryTracer(false);
+    // Delete the FMB file after tracing (as per requirements)
+    setFmbFile(null);
+  };
+
+  const handleBoundaryTraceCancel = () => {
+    setShowBoundaryTracer(false);
+  };
+
   const nextStep = () => {
     if (currentStep < FORM_STEPS.length) {
       setCurrentStep((prev) => prev + 1);
@@ -89,7 +111,7 @@ export const FarmCreate = () => {
         lng: parseFloat(locationLng) || 0,
       },
       boundary: {
-        points: [], // Will be set from boundary tracing
+        points: boundaryPoints,
         area: parseFloat(area) || 0,
       },
       fenced: isFenced,
@@ -279,12 +301,63 @@ export const FarmCreate = () => {
               )}
             </div>
 
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                🖊️ Boundary Tracing: After uploading, you'll trace your farm's boundary by connecting
-                points on the sketch. The sketch will be deleted after tracing is complete.
-              </p>
-            </div>
+            {/* Boundary Tracing Button */}
+            {fmbPreview && !boundaryPoints.length && (
+              <div>
+                <button
+                  onClick={handleStartBoundaryTrace}
+                  className="w-full px-6 py-4 bg-farm-green-600 hover:bg-farm-green-700 text-pearl
+                             rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span>Trace Farm Boundary</span>
+                </button>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">
+                  Click to start tracing your farm's boundary on the sketch
+                </p>
+              </div>
+            )}
+
+            {/* Traced Boundary Info */}
+            {boundaryPoints.length > 0 && (
+              <div className="bg-farm-green-50 dark:bg-farm-green-900/20 border-2 border-farm-green-500 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <svg className="w-6 h-6 text-farm-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="font-semibold text-farm-green-800 dark:text-farm-green-200">
+                      ✓ Boundary Traced Successfully
+                    </p>
+                    <p className="text-sm text-farm-green-700 dark:text-farm-green-300 mt-1">
+                      {boundaryPoints.length} points marked
+                    </p>
+                    <button
+                      onClick={() => {
+                        setBoundaryPoints([]);
+                        setTracedArea(0);
+                      }}
+                      className="mt-2 text-sm text-farm-green-600 hover:text-farm-green-700 underline"
+                    >
+                      Re-trace boundary
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Info Box */}
+            {!fmbPreview && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  🖊️ After uploading, you'll trace your farm's boundary by connecting points on the sketch.
+                  The sketch will be deleted after tracing is complete.
+                </p>
+              </div>
+            )}
           </div>
         );
 
@@ -584,6 +657,15 @@ export const FarmCreate = () => {
           </div>
         </div>
       </div>
+
+      {/* Boundary Tracer Modal */}
+      {showBoundaryTracer && fmbPreview && (
+        <BoundaryTracer
+          imageUrl={fmbPreview}
+          onComplete={handleBoundaryTraceComplete}
+          onCancel={handleBoundaryTraceCancel}
+        />
+      )}
     </div>
   );
 };
