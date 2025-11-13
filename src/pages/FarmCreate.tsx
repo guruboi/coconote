@@ -301,7 +301,76 @@ export const FarmCreate = () => {
   };
 
   const handleSubmit = () => {
-    // This will be expanded later to create the full farm object
+    // Helper function to convert position string to Point coordinates
+    const getPointFromPosition = (positionStr: string): { x: number; y: number } => {
+      if (!boundaryPoints || boundaryPoints.length === 0) {
+        return { x: 100, y: 100 }; // default fallback
+      }
+
+      const xs = boundaryPoints.map(p => p.x);
+      const ys = boundaryPoints.map(p => p.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const centerX = minX + (maxX - minX) / 2;
+      const centerY = minY + (maxY - minY) / 2;
+      const width = maxX - minX;
+      const height = maxY - minY;
+
+      const positions: Record<string, { x: number; y: number }> = {
+        'top-left': { x: minX + width * 0.15, y: minY + height * 0.15 },
+        'top-center': { x: centerX, y: minY + height * 0.15 },
+        'top-right': { x: maxX - width * 0.15, y: minY + height * 0.15 },
+        'center-left': { x: minX + width * 0.15, y: centerY },
+        'center': { x: centerX, y: centerY },
+        'center-right': { x: maxX - width * 0.15, y: centerY },
+        'bottom-left': { x: minX + width * 0.15, y: maxY - height * 0.15 },
+        'bottom-center': { x: centerX, y: maxY - height * 0.15 },
+        'bottom-right': { x: maxX - width * 0.15, y: maxY - height * 0.15 },
+      };
+
+      return positions[positionStr] || positions['center'];
+    };
+
+    // Convert buildings with proper Point positions
+    const convertedBuildings = buildings.map(b => ({
+      id: b.id,
+      type: b.type,
+      name: b.name,
+      position: getPointFromPosition(b.position),
+      size: {
+        width: b.sizeInCents / 100, // convert cents to acres for consistency
+        height: b.sizeInCents / 100,
+      },
+      direction: 'north' as const, // default direction
+    }));
+
+    // Convert plant configs
+    const convertedPlantConfigs = plantConfigs.map(pc => ({
+      id: pc.id,
+      name: pc.name,
+      category: pc.category,
+      plantType: pc.plantType,
+      rows: pc.rows,
+      columns: pc.columns,
+      spacingBetweenRows: pc.spacingBetweenRows,
+      spacingBetweenColumns: pc.spacingBetweenColumns,
+      startingCorner: pc.startCorner,
+      layer: pc.layer,
+      plantingDate: pc.plantingDate,
+    }));
+
+    // Convert other elements
+    const convertedOtherElements = otherElements.map(e => ({
+      id: e.id,
+      type: e.type,
+      name: e.name,
+      quantity: e.quantity,
+      position: getPointFromPosition(e.position),
+      notes: e.notes,
+    }));
+
     const newFarm = {
       id: Date.now().toString(),
       userId: 'user-1', // TODO: Get from auth
@@ -325,15 +394,15 @@ export const FarmCreate = () => {
       },
       farmingType,
       soilType,
-      buildings: [],
-      plantConfigurations: [],
-      plants: [],
+      buildings: convertedBuildings,
+      plantConfigurations: convertedPlantConfigs,
+      plants: [], // Will be generated from plant configs in renderer
       waterSources: [],
       pipelines: [],
       gateValves: [],
       livestock: [],
       livestockEnclosures: [],
-      otherElements: [],
+      otherElements: convertedOtherElements,
       farmNotes: [],
       createdAt: new Date(),
       updatedAt: new Date(),
