@@ -60,7 +60,6 @@ export const FarmCreate = () => {
   const [buildingType, setBuildingType] = useState<'house' | 'livestock-shed' | 'storage' | 'motor-room'>('house');
   const [buildingName, setBuildingName] = useState('');
   const [buildingSizeInCents, setBuildingSizeInCents] = useState('');
-  const [buildingPosition, setBuildingPosition] = useState('bottom-right');
 
   // Form state - Step 7: Plants & Trees
   const [plantConfigs, setPlantConfigs] = useState<Array<{
@@ -83,7 +82,6 @@ export const FarmCreate = () => {
   const [plantColumns, setPlantColumns] = useState('');
   const [plantSpacingRows, setPlantSpacingRows] = useState('');
   const [plantSpacingColumns, setPlantSpacingColumns] = useState('');
-  const [plantStartCorner, setPlantStartCorner] = useState('top-left');
   const [plantLayer, setPlantLayer] = useState(1);
   const [plantingDate, setPlantingDate] = useState('');
 
@@ -99,7 +97,6 @@ export const FarmCreate = () => {
   const [elementType, setElementType] = useState<'well' | 'borewell' | 'bee-box' | 'electricity-post' | 'pit' | 'livestock'>('well');
   const [elementName, setElementName] = useState('');
   const [elementQuantity, setElementQuantity] = useState('1');
-  const [elementPosition, setElementPosition] = useState('center');
   const [elementNotes, setElementNotes] = useState('');
 
   const handleFmbUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,7 +145,7 @@ export const FarmCreate = () => {
       type: buildingType,
       name: buildingName,
       sizeInCents: parseFloat(buildingSizeInCents),
-      position: buildingPosition,
+      position: 'center', // Default position - will be arranged in Edit Mode
     };
 
     setBuildings([...buildings, newBuilding]);
@@ -156,7 +153,6 @@ export const FarmCreate = () => {
     // Reset form
     setBuildingName('');
     setBuildingSizeInCents('');
-    setBuildingPosition('bottom-right');
   };
 
   const removeBuilding = (id: string) => {
@@ -197,7 +193,7 @@ export const FarmCreate = () => {
       columns: parseInt(plantColumns),
       spacingBetweenRows: parseFloat(plantSpacingRows),
       spacingBetweenColumns: parseFloat(plantSpacingColumns),
-      startCorner: plantStartCorner,
+      startCorner: 'top-left', // Default position - will be arranged in Edit Mode
       layer: plantLayer,
       plantingDate: plantingDate || new Date().toISOString().split('T')[0],
     };
@@ -212,7 +208,6 @@ export const FarmCreate = () => {
     setPlantColumns('');
     setPlantSpacingRows('');
     setPlantSpacingColumns('');
-    setPlantStartCorner('top-left');
     setPlantLayer(1);
     setPlantingDate('');
   };
@@ -247,7 +242,7 @@ export const FarmCreate = () => {
       type: elementType,
       name: elementName,
       quantity: parseInt(elementQuantity) || 1,
-      position: elementPosition,
+      position: 'center', // Default position - will be arranged in Edit Mode
       notes: elementNotes,
     };
 
@@ -256,7 +251,6 @@ export const FarmCreate = () => {
     // Reset form
     setElementName('');
     setElementQuantity('1');
-    setElementPosition('center');
     setElementNotes('');
   };
 
@@ -871,27 +865,10 @@ export const FarmCreate = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Position on Farm
-                  </label>
-                  <select
-                    value={buildingPosition}
-                    onChange={(e) => setBuildingPosition(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
-                               bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
-                               focus:ring-2 focus:ring-farm-green-500"
-                  >
-                    <option value="top-left">Top Left</option>
-                    <option value="top-center">Top Center</option>
-                    <option value="top-right">Top Right</option>
-                    <option value="center-left">Center Left</option>
-                    <option value="center">Center</option>
-                    <option value="center-right">Center Right</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="bottom-center">Bottom Center</option>
-                    <option value="bottom-right">Bottom Right</option>
-                  </select>
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    💡 Buildings will be placed at default positions. You can drag and arrange them later in Edit Mode.
+                  </p>
                 </div>
 
                 <button
@@ -1105,25 +1082,7 @@ export const FarmCreate = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Starting Corner
-                    </label>
-                    <select
-                      value={plantStartCorner}
-                      onChange={(e) => setPlantStartCorner(e.target.value)}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
-                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
-                                 focus:ring-2 focus:ring-farm-green-500"
-                    >
-                      <option value="top-left">Top Left</option>
-                      <option value="top-right">Top Right</option>
-                      <option value="bottom-left">Bottom Left</option>
-                      <option value="bottom-right">Bottom Right</option>
-                    </select>
-                  </div>
-
+                <div className={`grid gap-4 ${farmingType === 'multilayer' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
                   {farmingType === 'multilayer' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1158,6 +1117,12 @@ export const FarmCreate = () => {
                                  focus:ring-2 focus:ring-farm-green-500"
                     />
                   </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    💡 Plants will be placed at default positions. You can drag and arrange them later in Edit Mode.
+                  </p>
                 </div>
 
                 <button
@@ -1202,7 +1167,6 @@ export const FarmCreate = () => {
                             <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-600 dark:text-gray-400">
                               <span>📐 {config.rows}×{config.columns} grid</span>
                               <span>↔️ {config.spacingBetweenRows}ft × {config.spacingBetweenColumns}ft spacing</span>
-                              <span>🧭 Start: {config.startCorner}</span>
                               {farmingType === 'multilayer' && <span>🔢 Layer {config.layer}</span>}
                               {config.plantingDate && <span>📅 {new Date(config.plantingDate).toLocaleDateString()}</span>}
                             </div>
@@ -1317,29 +1281,6 @@ export const FarmCreate = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Position on Farm
-                  </label>
-                  <select
-                    value={elementPosition}
-                    onChange={(e) => setElementPosition(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
-                               bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
-                               focus:ring-2 focus:ring-farm-green-500"
-                  >
-                    <option value="top-left">Top Left</option>
-                    <option value="top-center">Top Center</option>
-                    <option value="top-right">Top Right</option>
-                    <option value="center-left">Center Left</option>
-                    <option value="center">Center</option>
-                    <option value="center-right">Center Right</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="bottom-center">Bottom Center</option>
-                    <option value="bottom-right">Bottom Right</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Notes (Optional)
                   </label>
                   <textarea
@@ -1351,6 +1292,12 @@ export const FarmCreate = () => {
                                bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
                                focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
                   />
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    💡 Elements will be placed at default positions. You can drag and arrange them later in Edit Mode.
+                  </p>
                 </div>
 
                 <button
