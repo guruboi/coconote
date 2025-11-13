@@ -9,6 +9,7 @@ interface FarmRendererProps {
   showGrid?: boolean;
   currentLayer?: number;
   isEditMode?: boolean;
+  draggingElement?: any;
 }
 
 interface DragState {
@@ -27,7 +28,8 @@ export const FarmRenderer = ({
   height = 600,
   showGrid = false,
   currentLayer = 1,
-  isEditMode = false
+  isEditMode = false,
+  draggingElement
 }: FarmRendererProps) => {
   const { updateFarm } = useFarmStore();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -127,16 +129,75 @@ export const FarmRenderer = ({
     };
   };
 
-  // Snap a position to the grid (1 sq ft grid cells)
-  const snapToGrid = (farmPos: Point): Point => {
+  // Smart snap based on element size in cents
+  const snapToGrid = (farmPos: Point, sizeInCents: number): Point => {
     const gridSize = bounds.gridCellSize || 1;
-    return {
-      x: Math.round(farmPos.x / gridSize) * gridSize,
-      y: Math.round(farmPos.y / gridSize) * gridSize
-    };
+
+    // Calculate how many grid cells this element needs
+    const sqFt = sizeInCents * 435.6; // 1 cent = 435.6 sq ft
+    const cellsNeeded = Math.ceil(sqFt); // Number of 1 sq ft cells
+
+    // For small elements (< 4 cells), snap to single cell
+    if (cellsNeeded < 4) {
+      return {
+        x: Math.round(farmPos.x / gridSize) * gridSize,
+        y: Math.round(farmPos.y / gridSize) * gridSize
+      };
+    }
+
+    // For larger elements, snap to grid aligned rectangular area
+    // Snap top-left corner to grid
+    const snappedX = Math.round(farmPos.x / gridSize) * gridSize;
+    const snappedY = Math.round(farmPos.y / gridSize) * gridSize;
+
+    return { x: snappedX, y: snappedY };
   };
 
-  // Drag event handlers
+  // Drag-and-drop handlers for palette elements
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Required to allow drop
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!isEditMode || !draggingElement) return;
+
+    const svgPos = { x: e.clientX - (svgRef.current?.getBoundingClientRect().left || 0), y: e.clientY - (svgRef.current?.getBoundingClientRect().top || 0) };
+    const farmPos = inverseTransformPoint(svgPos.x, svgPos.y);
+
+    // Get element size
+    const sizeInCents = draggingElement.defaultSize?.width || 1;
+    const snappedPos = snapToGrid(farmPos, sizeInCents);
+
+    // Create element based on category
+    if (draggingElement.category === 'building') {
+      const newBuilding = {
+        id: Date.now().toString(),
+        type: draggingElement.type,
+        name: draggingElement.name,
+        position: snappedPos,
+        size: {
+          width: draggingElement.defaultSize?.width || 5,
+          height: draggingElement.defaultSize?.height || 5,
+        },
+        direction: 'north' as const,
+      };
+      updateFarm(farm.id, { buildings: [...farm.buildings, newBuilding] });
+    } else if (draggingElement.category === 'element') {
+      const newElement = {
+        id: Date.now().toString(),
+        type: draggingElement.type,
+        name: draggingElement.name,
+        position: snappedPos,
+        quantity: 1,
+        notes: '',
+      };
+      updateFarm(farm.id, { otherElements: [...farm.otherElements, newElement] });
+    }
+  };
+
+  // Drag event handlers for existing elements
   const handleMouseDown = (
     e: React.MouseEvent<SVGElement>,
     elementType: 'building' | 'plantConfig' | 'otherElement',
@@ -195,7 +256,15 @@ export const FarmRenderer = ({
       const newSvgX = svgPos.x - dragState.offsetX;
       const newSvgY = svgPos.y - dragState.offsetY;
       const farmPos = inverseTransformPoint(newSvgX, newSvgY);
-      const snappedPos = snapToGrid(farmPos);
+
+      // Get element size for smart snapping
+      let sizeInCents = 1; // Default size
+      if (dragState.elementType === 'building') {
+        const building = farm.buildings.find(b => b.id === dragState.elementId);
+        sizeInCents = building?.size.width || 5;
+      }
+
+      const snappedPos = snapToGrid(farmPos, sizeInCents);
 
       // Update element position to snapped grid position
       if (dragState.elementType === 'building') {
@@ -520,11 +589,16 @@ export const FarmRenderer = ({
         viewBox={`0 0 ${width} ${height}`}
         className="max-w-full h-auto"
         style={{ cursor: dragState.isDragging ? 'grabbing' : 'default' }}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
-        {/* 1 sq ft Grid */}
-        {showGrid && bounds.gridCellSize && (
+        {/* 1 sq ft Grid - clipped to boundary */}
+        {showGrid && bounds.gridCellSize && boundaryPath && (
           <>
             <defs>
+              <clipPath id="boundary-clip">
+                <polygon points={boundaryPath} />
+              </clipPath>
               <pattern
                 id="sqft-grid"
                 width={bounds.gridCellSize * bounds.scale}
@@ -536,15 +610,18 @@ export const FarmRenderer = ({
                 <path
                   d={`M ${bounds.gridCellSize * bounds.scale} 0 L 0 0 0 ${bounds.gridCellSize * bounds.scale}`}
                   fill="none"
-                  stroke="rgba(34, 197, 94, 0.15)"
+                  stroke="rgba(34, 197, 94, 0.2)"
                   strokeWidth="0.5"
                 />
               </pattern>
             </defs>
             <rect
-              width={width}
-              height={height}
+              x={bounds.offsetX}
+              y={bounds.offsetY}
+              width={bounds.width * bounds.scale}
+              height={bounds.height * bounds.scale}
               fill="url(#sqft-grid)"
+              clipPath="url(#boundary-clip)"
             />
           </>
         )}

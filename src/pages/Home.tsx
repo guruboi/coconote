@@ -6,9 +6,12 @@ import { useState } from 'react';
 
 export const Home = () => {
   const navigate = useNavigate();
-  const { farms, setCurrentFarm, deleteFarm } = useFarmStore();
+  const { farms, setCurrentFarm, deleteFarm, updateFarm } = useFarmStore();
   const { user } = useUserStore();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [editingFarmId, setEditingFarmId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
   const handleAddFarm = () => {
     navigate('/farm/create');
@@ -24,7 +27,24 @@ export const Home = () => {
     setDeleteConfirmId(null);
   };
 
+  const handleStartEdit = (farm: any) => {
+    setEditingFarmId(farm.id);
+    setEditName(farm.name);
+    setEditDescription(farm.description || '');
+  };
+
+  const handleSaveEdit = () => {
+    if (editingFarmId && editName.trim()) {
+      updateFarm(editingFarmId, {
+        name: editName.trim(),
+        description: editDescription.trim(),
+      });
+      setEditingFarmId(null);
+    }
+  };
+
   const farmToDelete = farms.find(f => f.id === deleteConfirmId);
+  const editingFarm = farms.find(f => f.id === editingFarmId);
 
   return (
     <div className="min-h-screen bg-frost dark:bg-bg-dark p-6">
@@ -80,6 +100,20 @@ export const Home = () => {
                   className="bg-pearl dark:bg-bg-dark-alt p-6 rounded-xl shadow-lg
                              border-2 border-transparent hover:border-farm-green-500 transition-all relative group"
                 >
+                  {/* Edit button - shows on hover */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartEdit(farm);
+                    }}
+                    className="absolute top-4 right-14 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400
+                               rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-all
+                               opacity-0 group-hover:opacity-100 flex items-center justify-center"
+                    title="Edit farm name and description"
+                  >
+                    ✏️
+                  </button>
+
                   {/* Delete button - shows on hover */}
                   <button
                     onClick={(e) => {
@@ -144,6 +178,69 @@ export const Home = () => {
                     className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
                   >
                     Delete Farm
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Edit Farm Dialog */}
+        {editingFarmId && editingFarm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <div>
+                <div className="text-center mb-6">
+                  <div className="text-4xl mb-2">✏️</div>
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                    Edit Farm
+                  </h2>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Farm Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setEditingFarmId(null)}
+                    className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={!editName.trim()}
+                    className="flex-1 px-4 py-3 bg-farm-green-600 text-white rounded-lg hover:bg-farm-green-700 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Save Changes
                   </button>
                 </div>
               </div>
