@@ -49,6 +49,59 @@ export const FarmCreate = () => {
   const [soilType, setSoilType] = useState<SoilType>('red');
   const [multilayerCount, setMultilayerCount] = useState(1);
 
+  // Form state - Step 6: Buildings
+  const [buildings, setBuildings] = useState<Array<{
+    id: string;
+    type: 'house' | 'livestock-shed' | 'storage' | 'motor-room';
+    name: string;
+    sizeInCents: number;
+    position: string;
+  }>>([]);
+  const [buildingType, setBuildingType] = useState<'house' | 'livestock-shed' | 'storage' | 'motor-room'>('house');
+  const [buildingName, setBuildingName] = useState('');
+  const [buildingSizeInCents, setBuildingSizeInCents] = useState('');
+  const [buildingPosition, setBuildingPosition] = useState('bottom-right');
+
+  // Form state - Step 7: Plants & Trees
+  const [plantConfigs, setPlantConfigs] = useState<Array<{
+    id: string;
+    name: string;
+    plantType: string;
+    category: 'tree' | 'plant' | 'crop';
+    rows: number;
+    columns: number;
+    spacingBetweenRows: number;
+    spacingBetweenColumns: number;
+    startCorner: string;
+    layer: number;
+    plantingDate: string;
+  }>>([]);
+  const [plantConfigName, setPlantConfigName] = useState('');
+  const [plantType, setPlantType] = useState('');
+  const [plantCategory, setPlantCategory] = useState<'tree' | 'plant' | 'crop'>('tree');
+  const [plantRows, setPlantRows] = useState('');
+  const [plantColumns, setPlantColumns] = useState('');
+  const [plantSpacingRows, setPlantSpacingRows] = useState('');
+  const [plantSpacingColumns, setPlantSpacingColumns] = useState('');
+  const [plantStartCorner, setPlantStartCorner] = useState('top-left');
+  const [plantLayer, setPlantLayer] = useState(1);
+  const [plantingDate, setPlantingDate] = useState('');
+
+  // Form state - Step 8: Other Elements
+  const [otherElements, setOtherElements] = useState<Array<{
+    id: string;
+    type: 'well' | 'borewell' | 'bee-box' | 'electricity-post' | 'pit' | 'livestock';
+    name: string;
+    quantity: number;
+    position: string;
+    notes: string;
+  }>>([]);
+  const [elementType, setElementType] = useState<'well' | 'borewell' | 'bee-box' | 'electricity-post' | 'pit' | 'livestock'>('well');
+  const [elementName, setElementName] = useState('');
+  const [elementQuantity, setElementQuantity] = useState('1');
+  const [elementPosition, setElementPosition] = useState('center');
+  const [elementNotes, setElementNotes] = useState('');
+
   const handleFmbUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -85,6 +138,154 @@ export const FarmCreate = () => {
 
   const handleBoundaryTraceCancel = () => {
     setShowBoundaryTracer(false);
+  };
+
+  const addBuilding = () => {
+    if (!buildingName || !buildingSizeInCents) return;
+
+    const newBuilding = {
+      id: Date.now().toString(),
+      type: buildingType,
+      name: buildingName,
+      sizeInCents: parseFloat(buildingSizeInCents),
+      position: buildingPosition,
+    };
+
+    setBuildings([...buildings, newBuilding]);
+
+    // Reset form
+    setBuildingName('');
+    setBuildingSizeInCents('');
+    setBuildingPosition('bottom-right');
+  };
+
+  const removeBuilding = (id: string) => {
+    setBuildings(buildings.filter(b => b.id !== id));
+  };
+
+  const getBuildingIcon = (type: string) => {
+    switch (type) {
+      case 'house': return '🏠';
+      case 'livestock-shed': return '🐄';
+      case 'storage': return '📦';
+      case 'motor-room': return '⚡';
+      default: return '🏗️';
+    }
+  };
+
+  const getBuildingLabel = (type: string) => {
+    switch (type) {
+      case 'house': return 'House';
+      case 'livestock-shed': return 'Livestock Shed';
+      case 'storage': return 'Storage Unit';
+      case 'motor-room': return 'Motor Room';
+      default: return type;
+    }
+  };
+
+  const addPlantConfig = () => {
+    if (!plantConfigName || !plantType || !plantRows || !plantColumns || !plantSpacingRows || !plantSpacingColumns) {
+      return;
+    }
+
+    const newConfig = {
+      id: Date.now().toString(),
+      name: plantConfigName,
+      plantType,
+      category: plantCategory,
+      rows: parseInt(plantRows),
+      columns: parseInt(plantColumns),
+      spacingBetweenRows: parseFloat(plantSpacingRows),
+      spacingBetweenColumns: parseFloat(plantSpacingColumns),
+      startCorner: plantStartCorner,
+      layer: plantLayer,
+      plantingDate: plantingDate || new Date().toISOString().split('T')[0],
+    };
+
+    setPlantConfigs([...plantConfigs, newConfig]);
+
+    // Reset form
+    setPlantConfigName('');
+    setPlantType('');
+    setPlantCategory('tree');
+    setPlantRows('');
+    setPlantColumns('');
+    setPlantSpacingRows('');
+    setPlantSpacingColumns('');
+    setPlantStartCorner('top-left');
+    setPlantLayer(1);
+    setPlantingDate('');
+  };
+
+  const removePlantConfig = (id: string) => {
+    setPlantConfigs(plantConfigs.filter(p => p.id !== id));
+  };
+
+  const getPlantIcon = (category: string) => {
+    switch (category) {
+      case 'tree': return '🌴';
+      case 'plant': return '🌿';
+      case 'crop': return '🌾';
+      default: return '🌱';
+    }
+  };
+
+  const getCategoryLabel = (category: string) => {
+    switch (category) {
+      case 'tree': return 'Tree';
+      case 'plant': return 'Plant';
+      case 'crop': return 'Crop';
+      default: return category;
+    }
+  };
+
+  const addOtherElement = () => {
+    if (!elementName) return;
+
+    const newElement = {
+      id: Date.now().toString(),
+      type: elementType,
+      name: elementName,
+      quantity: parseInt(elementQuantity) || 1,
+      position: elementPosition,
+      notes: elementNotes,
+    };
+
+    setOtherElements([...otherElements, newElement]);
+
+    // Reset form
+    setElementName('');
+    setElementQuantity('1');
+    setElementPosition('center');
+    setElementNotes('');
+  };
+
+  const removeOtherElement = (id: string) => {
+    setOtherElements(otherElements.filter(e => e.id !== id));
+  };
+
+  const getElementIcon = (type: string) => {
+    switch (type) {
+      case 'well': return '💧';
+      case 'borewell': return '🕳️';
+      case 'bee-box': return '🐝';
+      case 'electricity-post': return '⚡';
+      case 'pit': return '⬛';
+      case 'livestock': return '🐄';
+      default: return '📍';
+    }
+  };
+
+  const getElementLabel = (type: string) => {
+    switch (type) {
+      case 'well': return 'Well';
+      case 'borewell': return 'Borewell';
+      case 'bee-box': return 'Bee Box';
+      case 'electricity-post': return 'Electricity Post';
+      case 'pit': return 'Pit';
+      case 'livestock': return 'Livestock';
+      default: return type;
+    }
   };
 
   const nextStep = () => {
@@ -528,62 +729,630 @@ export const FarmCreate = () => {
       case 6:
         return (
           <div className="space-y-6">
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Building configuration will allow you to add structures like:
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                Add Buildings (Optional)
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Add structures like houses, sheds, and storage units to your farm. You can skip this step and add them later.
               </p>
-              <ul className="text-sm text-gray-500 dark:text-gray-500 space-y-2">
-                <li>🏠 Houses</li>
-                <li>🐄 Livestock Sheds</li>
-                <li>📦 Storage Units</li>
-                <li>⚡ Motor Rooms</li>
-              </ul>
-              <p className="mt-6 text-sm text-farm-green-600">
-                This feature will be available in the next step of development!
-              </p>
+
+              {/* Add Building Form */}
+              <div className="bg-frost dark:bg-bg-dark rounded-lg p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Building Type
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { value: 'house', label: 'House', icon: '🏠' },
+                      { value: 'livestock-shed', label: 'Livestock Shed', icon: '🐄' },
+                      { value: 'storage', label: 'Storage', icon: '📦' },
+                      { value: 'motor-room', label: 'Motor Room', icon: '⚡' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setBuildingType(option.value as any)}
+                        className={`p-3 rounded-lg border-2 transition-colors ${
+                          buildingType === option.value
+                            ? 'border-farm-green-600 bg-farm-green-50 dark:bg-farm-green-900/20'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-farm-green-400'
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{option.icon}</div>
+                        <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {option.label}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Building Name
+                    </label>
+                    <input
+                      type="text"
+                      value={buildingName}
+                      onChange={(e) => setBuildingName(e.target.value)}
+                      placeholder="e.g., Main House, Cow Shed #1"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Size (in cents)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={buildingSizeInCents}
+                      onChange={(e) => setBuildingSizeInCents(e.target.value)}
+                      placeholder="e.g., 5"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Position on Farm
+                  </label>
+                  <select
+                    value={buildingPosition}
+                    onChange={(e) => setBuildingPosition(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                               bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                               focus:ring-2 focus:ring-farm-green-500"
+                  >
+                    <option value="top-left">Top Left</option>
+                    <option value="top-center">Top Center</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="center-left">Center Left</option>
+                    <option value="center">Center</option>
+                    <option value="center-right">Center Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-center">Bottom Center</option>
+                    <option value="bottom-right">Bottom Right</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addBuilding}
+                  disabled={!buildingName || !buildingSizeInCents}
+                  className={`w-full px-4 py-3 rounded-lg font-semibold transition-colors ${
+                    !buildingName || !buildingSizeInCents
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-farm-green-600 hover:bg-farm-green-700 text-pearl'
+                  }`}
+                >
+                  + Add Building
+                </button>
+              </div>
             </div>
+
+            {/* Buildings List */}
+            {buildings.length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100 mb-3">
+                  Added Buildings ({buildings.length})
+                </h4>
+                <div className="space-y-3">
+                  {buildings.map((building) => (
+                    <motion.div
+                      key={building.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-pearl dark:bg-bg-dark-alt p-4 rounded-lg border border-gray-200 dark:border-gray-600"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3 flex-1">
+                          <div className="text-2xl">{getBuildingIcon(building.type)}</div>
+                          <div className="flex-1">
+                            <h5 className="font-semibold text-gray-800 dark:text-gray-100">
+                              {building.name}
+                            </h5>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {getBuildingLabel(building.type)} • {building.sizeInCents} cents • {building.position}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeBuilding(building.id)}
+                          className="text-red-500 hover:text-red-700 p-2"
+                          title="Remove building"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {buildings.length === 0 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  💡 Tip: You can skip adding buildings now and add them later when viewing your farm.
+                </p>
+              </div>
+            )}
           </div>
         );
 
       case 7:
         return (
           <div className="space-y-6">
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Plant & tree configuration will allow you to set:
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                Configure Plants & Trees (Optional)
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Define how your plants and trees are arranged on the farm. Create different configurations for different areas. You can skip this and add them later.
               </p>
-              <ul className="text-sm text-gray-500 dark:text-gray-500 space-y-2">
-                <li>🌴 Tree types (coconut, teak, etc.)</li>
-                <li>🌿 Plant types (chilli, papaya, etc.)</li>
-                <li>📐 Rows, columns, and spacing</li>
-                <li>🧭 Starting direction</li>
-                <li>🔢 Layer assignment (for multilayer farming)</li>
-              </ul>
-              <p className="mt-6 text-sm text-farm-green-600">
-                This feature will be available in the next step of development!
-              </p>
+
+              {/* Add Plant Configuration Form */}
+              <div className="bg-frost dark:bg-bg-dark rounded-lg p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Configuration Name
+                  </label>
+                  <input
+                    type="text"
+                    value={plantConfigName}
+                    onChange={(e) => setPlantConfigName(e.target.value)}
+                    placeholder="e.g., North Section Coconuts, Main Field Chillies"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                               bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                               focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Category
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: 'tree', label: 'Tree', icon: '🌴' },
+                        { value: 'plant', label: 'Plant', icon: '🌿' },
+                        { value: 'crop', label: 'Crop', icon: '🌾' },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setPlantCategory(option.value as any)}
+                          className={`p-2 rounded-lg border-2 transition-colors ${
+                            plantCategory === option.value
+                              ? 'border-farm-green-600 bg-farm-green-50 dark:bg-farm-green-900/20'
+                              : 'border-gray-300 dark:border-gray-600 hover:border-farm-green-400'
+                          }`}
+                        >
+                          <div className="text-xl">{option.icon}</div>
+                          <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mt-1">
+                            {option.label}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Plant/Tree Type
+                    </label>
+                    <input
+                      type="text"
+                      value={plantType}
+                      onChange={(e) => setPlantType(e.target.value)}
+                      placeholder="e.g., Coconut, Chilli, Teak"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Number of Rows
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={plantRows}
+                      onChange={(e) => setPlantRows(e.target.value)}
+                      placeholder="e.g., 10"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Number of Columns
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={plantColumns}
+                      onChange={(e) => setPlantColumns(e.target.value)}
+                      placeholder="e.g., 15"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Spacing Between Rows (feet)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={plantSpacingRows}
+                      onChange={(e) => setPlantSpacingRows(e.target.value)}
+                      placeholder="e.g., 20"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Spacing Between Columns (feet)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={plantSpacingColumns}
+                      onChange={(e) => setPlantSpacingColumns(e.target.value)}
+                      placeholder="e.g., 20"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Starting Corner
+                    </label>
+                    <select
+                      value={plantStartCorner}
+                      onChange={(e) => setPlantStartCorner(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500"
+                    >
+                      <option value="top-left">Top Left</option>
+                      <option value="top-right">Top Right</option>
+                      <option value="bottom-left">Bottom Left</option>
+                      <option value="bottom-right">Bottom Right</option>
+                    </select>
+                  </div>
+
+                  {farmingType === 'multilayer' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Layer Number
+                      </label>
+                      <select
+                        value={plantLayer}
+                        onChange={(e) => setPlantLayer(parseInt(e.target.value))}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                   bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                   focus:ring-2 focus:ring-farm-green-500"
+                      >
+                        {Array.from({ length: multilayerCount }, (_, i) => i + 1).map((layer) => (
+                          <option key={layer} value={layer}>
+                            Layer {layer}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Planting Date (Optional)
+                    </label>
+                    <input
+                      type="date"
+                      value={plantingDate}
+                      onChange={(e) => setPlantingDate(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addPlantConfig}
+                  disabled={!plantConfigName || !plantType || !plantRows || !plantColumns || !plantSpacingRows || !plantSpacingColumns}
+                  className={`w-full px-4 py-3 rounded-lg font-semibold transition-colors ${
+                    !plantConfigName || !plantType || !plantRows || !plantColumns || !plantSpacingRows || !plantSpacingColumns
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-farm-green-600 hover:bg-farm-green-700 text-pearl'
+                  }`}
+                >
+                  + Add Configuration
+                </button>
+              </div>
             </div>
+
+            {/* Plant Configurations List */}
+            {plantConfigs.length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100 mb-3">
+                  Added Configurations ({plantConfigs.length})
+                </h4>
+                <div className="space-y-3">
+                  {plantConfigs.map((config) => (
+                    <motion.div
+                      key={config.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-pearl dark:bg-bg-dark-alt p-4 rounded-lg border border-gray-200 dark:border-gray-600"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3 flex-1">
+                          <div className="text-2xl">{getPlantIcon(config.category)}</div>
+                          <div className="flex-1">
+                            <h5 className="font-semibold text-gray-800 dark:text-gray-100">
+                              {config.name}
+                            </h5>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {getCategoryLabel(config.category)}: {config.plantType}
+                            </p>
+                            <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-600 dark:text-gray-400">
+                              <span>📐 {config.rows}×{config.columns} grid</span>
+                              <span>↔️ {config.spacingBetweenRows}ft × {config.spacingBetweenColumns}ft spacing</span>
+                              <span>🧭 Start: {config.startCorner}</span>
+                              {farmingType === 'multilayer' && <span>🔢 Layer {config.layer}</span>}
+                              {config.plantingDate && <span>📅 {new Date(config.plantingDate).toLocaleDateString()}</span>}
+                            </div>
+                            <p className="text-xs text-farm-green-600 dark:text-farm-green-400 mt-2">
+                              Total plants: {config.rows * config.columns}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removePlantConfig(config.id)}
+                          className="text-red-500 hover:text-red-700 p-2"
+                          title="Remove configuration"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {plantConfigs.length === 0 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  💡 Tip: You can skip adding plant configurations now and add them later when viewing your farm.
+                </p>
+              </div>
+            )}
           </div>
         );
 
       case 8:
         return (
           <div className="space-y-6">
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Other elements you can add:
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                Add Other Elements (Optional)
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Add wells, borewells, bee boxes, livestock, and other farm elements. You can skip this and add them later.
               </p>
-              <ul className="text-sm text-gray-500 dark:text-gray-500 space-y-2">
-                <li>💧 Wells & Borewells</li>
-                <li>🐝 Bee Boxes</li>
-                <li>⚡ Electricity Posts</li>
-                <li>🕳️ Pits</li>
-                <li>🐄 Livestock</li>
-              </ul>
-              <p className="mt-6 text-sm text-farm-green-600">
-                These features will be available in the next step of development!
-              </p>
+
+              {/* Add Element Form */}
+              <div className="bg-frost dark:bg-bg-dark rounded-lg p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Element Type
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {[
+                      { value: 'well', label: 'Well', icon: '💧' },
+                      { value: 'borewell', label: 'Borewell', icon: '🕳️' },
+                      { value: 'bee-box', label: 'Bee Box', icon: '🐝' },
+                      { value: 'electricity-post', label: 'Elec. Post', icon: '⚡' },
+                      { value: 'pit', label: 'Pit', icon: '⬛' },
+                      { value: 'livestock', label: 'Livestock', icon: '🐄' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setElementType(option.value as any)}
+                        className={`p-3 rounded-lg border-2 transition-colors ${
+                          elementType === option.value
+                            ? 'border-farm-green-600 bg-farm-green-50 dark:bg-farm-green-900/20'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-farm-green-400'
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{option.icon}</div>
+                        <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          {option.label}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Name/Description
+                    </label>
+                    <input
+                      type="text"
+                      value={elementName}
+                      onChange={(e) => setElementName(e.target.value)}
+                      placeholder="e.g., Main Well, Jersey Cow"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Quantity
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={elementQuantity}
+                      onChange={(e) => setElementQuantity(e.target.value)}
+                      placeholder="1"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                                 focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Position on Farm
+                  </label>
+                  <select
+                    value={elementPosition}
+                    onChange={(e) => setElementPosition(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                               bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                               focus:ring-2 focus:ring-farm-green-500"
+                  >
+                    <option value="top-left">Top Left</option>
+                    <option value="top-center">Top Center</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="center-left">Center Left</option>
+                    <option value="center">Center</option>
+                    <option value="center-right">Center Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-center">Bottom Center</option>
+                    <option value="bottom-right">Bottom Right</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Notes (Optional)
+                  </label>
+                  <textarea
+                    value={elementNotes}
+                    onChange={(e) => setElementNotes(e.target.value)}
+                    placeholder="Additional details..."
+                    rows={2}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                               bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                               focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addOtherElement}
+                  disabled={!elementName}
+                  className={`w-full px-4 py-3 rounded-lg font-semibold transition-colors ${
+                    !elementName
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-farm-green-600 hover:bg-farm-green-700 text-pearl'
+                  }`}
+                >
+                  + Add Element
+                </button>
+              </div>
             </div>
+
+            {/* Elements List */}
+            {otherElements.length > 0 && (
+              <div>
+                <h4 className="text-md font-semibold text-gray-800 dark:text-gray-100 mb-3">
+                  Added Elements ({otherElements.length})
+                </h4>
+                <div className="space-y-3">
+                  {otherElements.map((element) => (
+                    <motion.div
+                      key={element.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-pearl dark:bg-bg-dark-alt p-4 rounded-lg border border-gray-200 dark:border-gray-600"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3 flex-1">
+                          <div className="text-2xl">{getElementIcon(element.type)}</div>
+                          <div className="flex-1">
+                            <h5 className="font-semibold text-gray-800 dark:text-gray-100">
+                              {element.name}
+                            </h5>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {getElementLabel(element.type)} • Qty: {element.quantity} • Position: {element.position}
+                            </p>
+                            {element.notes && (
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                {element.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeOtherElement(element.id)}
+                          className="text-red-500 hover:text-red-700 p-2"
+                          title="Remove element"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {otherElements.length === 0 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  💡 Tip: You can skip adding other elements now and add them later when viewing your farm.
+                </p>
+              </div>
+            )}
           </div>
         );
 

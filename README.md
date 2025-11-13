@@ -24,20 +24,21 @@ A modern, feature-rich Progressive Web App for managing farms in Coimbatore, Tam
 - **PWA Capabilities** - Install on mobile/desktop, works offline
 - **Auto Theme** - Automatically switches between light/dark mode based on system preference
 - **Header Navigation** - Search, notifications, user menu
-- **Multi-step Farm Creation**
-  - Basic info (name, description)
-  - Location & area (coordinates, acres)
-  - FMB sketch upload with preview
-  - Farm details (fencing, entry, road borders)
-  - Farming type & soil type selection
+- **Complete 8-Step Farm Creation Wizard**
+  - Step 1: Basic info (name, description)
+  - Step 2: Location & area (coordinates, acres)
+  - Step 3: FMB sketch upload with interactive boundary tracing
+  - Step 4: Farm details (fencing, entry, road borders)
+  - Step 5: Farming type & soil type selection
+  - Step 6: Buildings (houses, sheds, storage, motor rooms)
+  - Step 7: Plants & trees (rows, columns, spacing, layers)
+  - Step 8: Other elements (wells, borewells, bee boxes, livestock, etc.)
+- **Interactive Boundary Tracer** - Click-to-trace farm boundaries on FMB sketches with area calculation
 - **Farm List View** - View all your farms
 - **Finance Dashboard** - Track expenses, income, profit
 - **Responsive Design** - Works on all devices
 
 ### 🚧 Coming Soon
-- Interactive boundary tracing on FMB sketches
-- Buildings configuration (houses, sheds, storage)
-- Plants & trees configuration (rows, columns, spacing, layers)
 - Top-down drone view of farm (RPG-style rendering)
 - 4 farm modes: View, Edit, Pipeline, Livestock
 - Multilayer farming visualization
@@ -179,9 +180,9 @@ If you encounter any problems:
 
 ## 🎯 Roadmap
 
-- [ ] Boundary tracing tool
-- [ ] Building placement & configuration
-- [ ] Plant/tree grid calculator
+- [x] Boundary tracing tool
+- [x] Building placement & configuration
+- [x] Plant/tree grid calculator
 - [ ] Top-down farm renderer
 - [ ] TNGIS map integration
 - [ ] Backend API (FastAPI)
