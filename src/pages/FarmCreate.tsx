@@ -10,8 +10,7 @@ const FORM_STEPS = [
   { number: 1, title: 'Basic Info', description: 'Name and description' },
   { number: 2, title: 'Location & Area', description: 'Map location and size' },
   { number: 3, title: 'FMB Sketch', description: 'Upload and trace boundary' },
-  { number: 4, title: 'Farm Details', description: 'Entry, fencing, roads' },
-  { number: 5, title: 'Farming Type', description: 'Type and soil' },
+  { number: 4, title: 'Farming Type', description: 'Type and soil' },
 ];
 
 export const FarmCreate = () => {
@@ -35,13 +34,7 @@ export const FarmCreate = () => {
   const [boundaryPoints, setBoundaryPoints] = useState<Point[]>([]);
   const [_tracedArea, setTracedArea] = useState<number>(0); // Will be used for area validation later
 
-  // Form state - Step 4: Farm Details
-  const [isFenced, setIsFenced] = useState(false);
-  const [entrySide, setEntrySide] = useState<Direction>('north');
-  const [entryAlignment, setEntryAlignment] = useState<Alignment>('center');
-  const [roadBorders, setRoadBorders] = useState<Direction[]>([]);
-
-  // Form state - Step 5: Farming Type
+  // Form state - Step 4: Farming Type
   const [farmingType, setFarmingType] = useState<FarmingType>('single-layer');
   const [soilType, setSoilType] = useState<SoilType>('red');
   const [multilayerCount, setMultilayerCount] = useState(1);
@@ -56,14 +49,6 @@ export const FarmCreate = () => {
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const handleRoadBorderToggle = (direction: Direction) => {
-    setRoadBorders((prev) =>
-      prev.includes(direction)
-        ? prev.filter((d) => d !== direction)
-        : [...prev, direction]
-    );
   };
 
   const handleStartBoundaryTrace = () => {
@@ -110,13 +95,13 @@ export const FarmCreate = () => {
         points: boundaryPoints,
         area: parseFloat(area) || 0,
       },
-      fenced: isFenced,
+      fenced: false,
       entry: {
-        side: entrySide,
-        alignment: entryAlignment,
+        side: 'north' as Direction,
+        alignment: 'center' as Alignment,
       },
       roadBorders: {
-        sides: roadBorders,
+        sides: [],
       },
       farmingType,
       soilType,
@@ -359,89 +344,6 @@ export const FarmCreate = () => {
         );
 
       case 4:
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isFenced}
-                  onChange={(e) => setIsFenced(e.target.checked)}
-                  className="w-5 h-5 text-farm-green-600 rounded focus:ring-farm-green-500"
-                />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Farm is fenced
-                </span>
-              </label>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Entry Location
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-2">
-                    From which side?
-                  </label>
-                  <select
-                    value={entrySide}
-                    onChange={(e) => setEntrySide(e.target.value as Direction)}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
-                               bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
-                               focus:ring-2 focus:ring-farm-green-500"
-                  >
-                    <option value="north">North</option>
-                    <option value="south">South</option>
-                    <option value="east">East</option>
-                    <option value="west">West</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-2">
-                    Alignment
-                  </label>
-                  <select
-                    value={entryAlignment}
-                    onChange={(e) => setEntryAlignment(e.target.value as Alignment)}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
-                               bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
-                               focus:ring-2 focus:ring-farm-green-500"
-                  >
-                    <option value="center">Center</option>
-                    <option value="top-left">Top Left Corner</option>
-                    <option value="top-right">Top Right Corner</option>
-                    <option value="bottom-left">Bottom Left Corner</option>
-                    <option value="bottom-right">Bottom Right Corner</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Is there a road on any border of the farm?
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {(['north', 'south', 'east', 'west'] as Direction[]).map((direction) => (
-                  <label key={direction} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={roadBorders.includes(direction)}
-                      onChange={() => handleRoadBorderToggle(direction)}
-                      className="w-4 h-4 text-farm-green-600 rounded focus:ring-farm-green-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
-                      {direction} side
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 5:
         return (
           <div className="space-y-6">
             <div>
