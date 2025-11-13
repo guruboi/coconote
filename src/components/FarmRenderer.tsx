@@ -78,6 +78,14 @@ export const FarmRenderer = ({
     const scaleY = availableHeight / boundaryHeight;
     const scale = Math.min(scaleX, scaleY);
 
+    // Calculate grid cell size (1 sq ft)
+    // Farm area in acres, 1 acre = 43,560 sq ft
+    const areaInSqFt = farm.boundary.area * 43560;
+    // Farm boundary area in coordinate units
+    const boundaryArea = boundaryWidth * boundaryHeight;
+    // 1 sq ft in coordinate units
+    const gridCellSize = Math.sqrt(boundaryArea / areaInSqFt);
+
     return {
       minX,
       minY,
@@ -87,9 +95,11 @@ export const FarmRenderer = ({
       height: boundaryHeight,
       scale,
       offsetX: padding + (availableWidth - boundaryWidth * scale) / 2,
-      offsetY: padding + (availableHeight - boundaryHeight * scale) / 2
+      offsetY: padding + (availableHeight - boundaryHeight * scale) / 2,
+      gridCellSize, // Size of 1 sq ft grid cell in farm coordinates
+      areaInSqFt,
     };
-  }, [farm.boundary.points, width, height]);
+  }, [farm.boundary.points, farm.boundary.area, width, height]);
 
   // Transform a point from farm coordinates to SVG coordinates
   const transformPoint = (x: number, y: number) => {
@@ -114,6 +124,15 @@ export const FarmRenderer = ({
     return {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top
+    };
+  };
+
+  // Snap a position to the grid (1 sq ft grid cells)
+  const snapToGrid = (farmPos: Point): Point => {
+    const gridSize = bounds.gridCellSize || 1;
+    return {
+      x: Math.round(farmPos.x / gridSize) * gridSize,
+      y: Math.round(farmPos.y / gridSize) * gridSize
     };
   };
 
@@ -169,8 +188,33 @@ export const FarmRenderer = ({
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: MouseEvent) => {
     if (dragState.isDragging) {
+      // Snap to grid when dropped
+      const svgPos = getSvgMousePosition(e);
+      const newSvgX = svgPos.x - dragState.offsetX;
+      const newSvgY = svgPos.y - dragState.offsetY;
+      const farmPos = inverseTransformPoint(newSvgX, newSvgY);
+      const snappedPos = snapToGrid(farmPos);
+
+      // Update element position to snapped grid position
+      if (dragState.elementType === 'building') {
+        const updatedBuildings = farm.buildings.map(b =>
+          b.id === dragState.elementId ? { ...b, position: snappedPos } : b
+        );
+        updateFarm(farm.id, { buildings: updatedBuildings });
+      } else if (dragState.elementType === 'plantConfig') {
+        const updatedConfigs = farm.plantConfigurations.map(c =>
+          c.id === dragState.elementId ? { ...c, startingCorner: snappedPos } : c
+        );
+        updateFarm(farm.id, { plantConfigurations: updatedConfigs });
+      } else if (dragState.elementType === 'otherElement') {
+        const updatedElements = farm.otherElements.map(e =>
+          e.id === dragState.elementId ? { ...e, position: snappedPos } : e
+        );
+        updateFarm(farm.id, { otherElements: updatedElements });
+      }
+
       setDragState({
         isDragging: false,
         elementType: null,
@@ -477,22 +521,32 @@ export const FarmRenderer = ({
         className="max-w-full h-auto"
         style={{ cursor: dragState.isDragging ? 'grabbing' : 'default' }}
       >
-        {/* Background grid */}
-        {showGrid && (
-          <defs>
-            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path
-                d="M 20 0 L 0 0 0 20"
-                fill="none"
-                stroke="rgba(0,0,0,0.05)"
-                strokeWidth="0.5"
-              />
-            </pattern>
-          </defs>
-        )}
-
-        {showGrid && (
-          <rect width={width} height={height} fill="url(#grid)" />
+        {/* 1 sq ft Grid */}
+        {showGrid && bounds.gridCellSize && (
+          <>
+            <defs>
+              <pattern
+                id="sqft-grid"
+                width={bounds.gridCellSize * bounds.scale}
+                height={bounds.gridCellSize * bounds.scale}
+                patternUnits="userSpaceOnUse"
+                x={bounds.offsetX - bounds.minX * bounds.scale}
+                y={bounds.offsetY - bounds.minY * bounds.scale}
+              >
+                <path
+                  d={`M ${bounds.gridCellSize * bounds.scale} 0 L 0 0 0 ${bounds.gridCellSize * bounds.scale}`}
+                  fill="none"
+                  stroke="rgba(34, 197, 94, 0.15)"
+                  strokeWidth="0.5"
+                />
+              </pattern>
+            </defs>
+            <rect
+              width={width}
+              height={height}
+              fill="url(#sqft-grid)"
+            />
+          </>
         )}
 
         {/* Farm boundary */}
