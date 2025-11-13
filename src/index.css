@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Custom color palette - avoiding harsh white, using softer tones */
+    --color-snow: 255 250 250;
+    --color-frost: 240 244 248;
+    --color-eggshell: 245 245 220;
+    --color-cream: 255 253 208;
+    --color-pearl: 250 249 246;
+
+    /* Light theme backgrounds */
+    --color-bg-light: 240 244 248;
+    --color-bg-light-alt: 250 249 246;
+
+    /* Dark theme backgrounds */
+    --color-bg-dark: 26 31 46;
+    --color-bg-dark-alt: 37 43 59;
+
+    /* Farm green accent colors */
+    --color-farm-green-50: 240 253 244;
+    --color-farm-green-100: 220 252 231;
+    --color-farm-green-200: 187 247 208;
+    --color-farm-green-300: 134 239 172;
+    --color-farm-green-400: 74 222 128;
+    --color-farm-green-500: 34 197 94;
+    --color-farm-green-600: 22 163 74;
+    --color-farm-green-700: 21 128 61;
+    --color-farm-green-800: 22 101 52;
+    --color-farm-green-900: 20 83 45;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(203 213 225);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(148 163 184);
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: rgb(71 85 105);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: rgb(100 116 139);
+  }
+}
