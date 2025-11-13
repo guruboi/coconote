@@ -167,15 +167,12 @@ export const FarmRenderer = ({
       const plants = [];
       const startPos = getPositionCoordinates(config.startingCorner as any);
 
-      // Determine if we should show all plants or just a subset for large grids
-      const maxPlantsToShow = 100;
-      const totalPlants = config.rows * config.columns;
-      const skipFactor = totalPlants > maxPlantsToShow ? Math.ceil(totalPlants / maxPlantsToShow) : 1;
-
-      for (let row = 0; row < config.rows; row += skipFactor) {
-        for (let col = 0; col < config.columns; col += skipFactor) {
-          const plantX = startPos.x + col * config.spacingBetweenColumns * 2;
-          const plantY = startPos.y + row * config.spacingBetweenRows * 2;
+      // Render ALL plants - no skipping
+      for (let row = 0; row < config.rows; row++) {
+        for (let col = 0; col < config.columns; col++) {
+          // Use spacing directly without multiplying by 2
+          const plantX = startPos.x + col * config.spacingBetweenColumns;
+          const plantY = startPos.y + row * config.spacingBetweenRows;
           const transformed = transformPoint(plantX, plantY);
 
           const icon = config.category === 'tree' ? '🌴' :
@@ -186,7 +183,7 @@ export const FarmRenderer = ({
               <circle
                 cx={transformed.x}
                 cy={transformed.y}
-                r={8}
+                r={6}
                 fill="rgba(34, 197, 94, 0.2)"
                 stroke="#22c55e"
                 strokeWidth={1}
@@ -196,7 +193,7 @@ export const FarmRenderer = ({
                 y={transformed.y}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontSize="12"
+                fontSize="10"
               >
                 {icon}
               </text>
