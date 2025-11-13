@@ -178,6 +178,7 @@ export const FarmView = () => {
             height={700}
             showGrid={showGrid}
             currentLayer={viewState.selectedLayer}
+            isEditMode={viewState.mode === 'edit'}
           />
         </motion.div>
 

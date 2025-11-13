@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import type { Farm } from '@/types/farm.types';
+import { useMemo, useState, useRef } from 'react';
+import type { Farm, Point } from '@/types/farm.types';
+import { useFarmStore } from '@/stores/farmStore';
 
 interface FarmRendererProps {
   farm: Farm;
@@ -7,6 +8,17 @@ interface FarmRendererProps {
   height?: number;
   showGrid?: boolean;
   currentLayer?: number;
+  isEditMode?: boolean;
+}
+
+interface DragState {
+  isDragging: boolean;
+  elementType: 'building' | 'plantConfig' | 'otherElement' | null;
+  elementId: string | null;
+  startX: number;
+  startY: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 export const FarmRenderer = ({
@@ -14,8 +26,20 @@ export const FarmRenderer = ({
   width = 800,
   height = 600,
   showGrid = false,
-  currentLayer = 1
+  currentLayer = 1,
+  isEditMode = false
 }: FarmRendererProps) => {
+  const { updateFarm } = useFarmStore();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [dragState, setDragState] = useState<DragState>({
+    isDragging: false,
+    elementType: null,
+    elementId: null,
+    startX: 0,
+    startY: 0,
+    offsetX: 0,
+    offsetY: 0,
+  });
 
   // Calculate the bounding box of the farm
   const bounds = useMemo(() => {
@@ -75,8 +99,109 @@ export const FarmRenderer = ({
     };
   };
 
+  // Inverse transform: SVG coordinates to farm coordinates
+  const inverseTransformPoint = (svgX: number, svgY: number): Point => {
+    return {
+      x: bounds.minX + (svgX - bounds.offsetX) / bounds.scale,
+      y: bounds.minY + (svgY - bounds.offsetY) / bounds.scale
+    };
+  };
+
+  // Get mouse position relative to SVG
+  const getSvgMousePosition = (e: React.MouseEvent<SVGElement> | MouseEvent): Point => {
+    if (!svgRef.current) return { x: 0, y: 0 };
+    const rect = svgRef.current.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  };
+
+  // Drag event handlers
+  const handleMouseDown = (
+    e: React.MouseEvent<SVGElement>,
+    elementType: 'building' | 'plantConfig' | 'otherElement',
+    elementId: string,
+    currentX: number,
+    currentY: number
+  ) => {
+    if (!isEditMode) return;
+    e.stopPropagation();
+
+    const svgPos = getSvgMousePosition(e);
+    const currentSvgPos = transformPoint(currentX, currentY);
+
+    setDragState({
+      isDragging: true,
+      elementType,
+      elementId,
+      startX: svgPos.x,
+      startY: svgPos.y,
+      offsetX: svgPos.x - currentSvgPos.x,
+      offsetY: svgPos.y - currentSvgPos.y,
+    });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!dragState.isDragging || !isEditMode) return;
+
+    const svgPos = getSvgMousePosition(e);
+    const newSvgX = svgPos.x - dragState.offsetX;
+    const newSvgY = svgPos.y - dragState.offsetY;
+    const farmPos = inverseTransformPoint(newSvgX, newSvgY);
+
+    // Update element position based on type
+    if (dragState.elementType === 'building') {
+      const updatedBuildings = farm.buildings.map(b =>
+        b.id === dragState.elementId ? { ...b, position: farmPos } : b
+      );
+      updateFarm(farm.id, { buildings: updatedBuildings });
+    } else if (dragState.elementType === 'plantConfig') {
+      const updatedConfigs = farm.plantConfigurations.map(c =>
+        c.id === dragState.elementId ? { ...c, startingCorner: farmPos } : c
+      );
+      updateFarm(farm.id, { plantConfigurations: updatedConfigs });
+    } else if (dragState.elementType === 'otherElement') {
+      const updatedElements = farm.otherElements.map(e =>
+        e.id === dragState.elementId ? { ...e, position: farmPos } : e
+      );
+      updateFarm(farm.id, { otherElements: updatedElements });
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (dragState.isDragging) {
+      setDragState({
+        isDragging: false,
+        elementType: null,
+        elementId: null,
+        startX: 0,
+        startY: 0,
+        offsetX: 0,
+        offsetY: 0,
+      });
+    }
+  };
+
+  // Add global mouse event listeners for drag
+  useMemo(() => {
+    if (isEditMode) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [dragState.isDragging, isEditMode]);
+
   // Convert position string to coordinates
-  const getPositionCoordinates = (position: string) => {
+  const getPositionCoordinates = (position: string | Point): Point => {
+    // If already a Point object, return it
+    if (typeof position === 'object' && 'x' in position && 'y' in position) {
+      return position;
+    }
+
     const centerX = bounds.minX + bounds.width / 2;
     const centerY = bounds.minY + bounds.height / 2;
 
@@ -92,7 +217,7 @@ export const FarmRenderer = ({
       'bottom-right': { x: bounds.maxX - bounds.width * 0.15, y: bounds.maxY - bounds.height * 0.15 },
     };
 
-    return positions[position] || positions['center'];
+    return positions[position as string] || positions['center'];
   };
 
   // Render boundary polygon
@@ -112,6 +237,7 @@ export const FarmRenderer = ({
     return farm.buildings.map((building) => {
       // Building position is a Point object, not a string
       const transformed = transformPoint(building.position.x, building.position.y);
+      const isDragging = dragState.isDragging && dragState.elementType === 'building' && dragState.elementId === building.id;
 
       const iconMap: Record<string, string> = {
         'house': '🏠',
@@ -121,7 +247,12 @@ export const FarmRenderer = ({
       };
 
       return (
-        <g key={building.id}>
+        <g
+          key={building.id}
+          style={{ cursor: isEditMode ? 'grab' : 'default' }}
+          opacity={isDragging ? 0.7 : 1}
+          onMouseDown={(e) => isEditMode && handleMouseDown(e, 'building', building.id, building.position.x, building.position.y)}
+        >
           <rect
             x={transformed.x - 20}
             y={transformed.y - 20}
@@ -129,7 +260,7 @@ export const FarmRenderer = ({
             height={40}
             fill="rgba(139, 92, 46, 0.3)"
             stroke="#8b5c2e"
-            strokeWidth={2}
+            strokeWidth={isDragging ? 3 : 2}
             rx={4}
           />
           <text
@@ -138,6 +269,7 @@ export const FarmRenderer = ({
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize="24"
+            style={{ pointerEvents: 'none' }}
           >
             {iconMap[building.type] || '🏗️'}
           </text>
@@ -148,6 +280,7 @@ export const FarmRenderer = ({
             fontSize="10"
             fill="currentColor"
             className="text-gray-700 dark:text-gray-300"
+            style={{ pointerEvents: 'none' }}
           >
             {building.name}
           </text>
@@ -166,6 +299,7 @@ export const FarmRenderer = ({
 
       const plants = [];
       const startPos = getPositionCoordinates(config.startingCorner as any);
+      const isDragging = dragState.isDragging && dragState.elementType === 'plantConfig' && dragState.elementId === config.id;
 
       // Render ALL plants - no skipping
       for (let row = 0; row < config.rows; row++) {
@@ -186,7 +320,7 @@ export const FarmRenderer = ({
                 r={6}
                 fill="rgba(34, 197, 94, 0.2)"
                 stroke="#22c55e"
-                strokeWidth={1}
+                strokeWidth={isDragging ? 2 : 1}
               />
               <text
                 x={transformed.x}
@@ -194,6 +328,7 @@ export const FarmRenderer = ({
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize="10"
+                style={{ pointerEvents: 'none' }}
               >
                 {icon}
               </text>
@@ -202,7 +337,16 @@ export const FarmRenderer = ({
         }
       }
 
-      return <g key={config.id}>{plants}</g>;
+      return (
+        <g
+          key={config.id}
+          style={{ cursor: isEditMode ? 'grab' : 'default' }}
+          opacity={isDragging ? 0.7 : 1}
+          onMouseDown={(e) => isEditMode && handleMouseDown(e, 'plantConfig', config.id, startPos.x, startPos.y)}
+        >
+          {plants}
+        </g>
+      );
     });
   };
 
@@ -213,6 +357,7 @@ export const FarmRenderer = ({
         ? getPositionCoordinates(element.position)
         : element.position;
       const transformed = transformPoint(pos.x, pos.y);
+      const isDragging = dragState.isDragging && dragState.elementType === 'otherElement' && dragState.elementId === element.id;
 
       const iconMap: Record<string, string> = {
         'well': '💧',
@@ -224,14 +369,19 @@ export const FarmRenderer = ({
       };
 
       return (
-        <g key={element.id}>
+        <g
+          key={element.id}
+          style={{ cursor: isEditMode ? 'grab' : 'default' }}
+          opacity={isDragging ? 0.7 : 1}
+          onMouseDown={(e) => isEditMode && handleMouseDown(e, 'otherElement', element.id, pos.x, pos.y)}
+        >
           <circle
             cx={transformed.x}
             cy={transformed.y}
             r={16}
             fill="rgba(59, 130, 246, 0.2)"
             stroke="#3b82f6"
-            strokeWidth={2}
+            strokeWidth={isDragging ? 3 : 2}
           />
           <text
             x={transformed.x}
@@ -239,6 +389,7 @@ export const FarmRenderer = ({
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize="20"
+            style={{ pointerEvents: 'none' }}
           >
             {iconMap[element.type] || '📍'}
           </text>
@@ -249,6 +400,7 @@ export const FarmRenderer = ({
             fontSize="9"
             fill="currentColor"
             className="text-gray-700 dark:text-gray-300"
+            style={{ pointerEvents: 'none' }}
           >
             {element.name}
           </text>
@@ -318,10 +470,12 @@ export const FarmRenderer = ({
   return (
     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 rounded-lg overflow-hidden">
       <svg
+        ref={svgRef}
         width={width}
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         className="max-w-full h-auto"
+        style={{ cursor: dragState.isDragging ? 'grabbing' : 'default' }}
       >
         {/* Background grid */}
         {showGrid && (

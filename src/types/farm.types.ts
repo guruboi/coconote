@@ -61,7 +61,7 @@ export interface PlantConfiguration {
   columns: number;
   spacingBetweenRows: number; // in feet
   spacingBetweenColumns: number; // in feet
-  startingCorner: string; // corner to start planting from
+  startingCorner: string | Point; // corner to start planting from (string for predefined, Point for manual positioning)
   layer: number; // for multilayer farming (1, 2, 3, etc.)
   plantingDate?: string; // ISO date string
 }
