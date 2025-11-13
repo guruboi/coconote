@@ -7,10 +7,8 @@ import { useFarmStore } from '@/stores/farmStore';
 import type { Direction, FarmingType, SoilType, Alignment, Point } from '@/types/farm.types';
 
 const FORM_STEPS = [
-  { number: 1, title: 'Basic Info', description: 'Name and description' },
-  { number: 2, title: 'Location & Area', description: 'Map location and size' },
-  { number: 3, title: 'FMB Sketch', description: 'Upload and trace boundary' },
-  { number: 4, title: 'Farming Type', description: 'Type and soil' },
+  { number: 1, title: 'Farm Details', description: 'Name, area, and farming type' },
+  { number: 2, title: 'FMB Sketch', description: 'Upload and trace boundary' },
 ];
 
 export const FarmCreate = () => {
@@ -18,26 +16,20 @@ export const FarmCreate = () => {
   const { addFarm, setMode } = useFarmStore();
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Form state - Step 1: Basic Info
+  // Form state - Step 1: Farm Details (Basic Info + Area + Farming Type)
   const [farmName, setFarmName] = useState('');
   const [farmDescription, setFarmDescription] = useState('');
-
-  // Form state - Step 2: Location & Area
   const [area, setArea] = useState('');
-  const [locationLat, setLocationLat] = useState('');
-  const [locationLng, setLocationLng] = useState('');
+  const [farmingType, setFarmingType] = useState<FarmingType>('single-layer');
+  const [soilType, setSoilType] = useState<SoilType>('red');
+  const [multilayerCount, setMultilayerCount] = useState(1);
 
-  // Form state - Step 3: FMB Sketch
+  // Form state - Step 2: FMB Sketch
   const [fmbFile, setFmbFile] = useState<File | null>(null);
   const [fmbPreview, setFmbPreview] = useState<string | null>(null);
   const [showBoundaryTracer, setShowBoundaryTracer] = useState(false);
   const [boundaryPoints, setBoundaryPoints] = useState<Point[]>([]);
   const [_tracedArea, setTracedArea] = useState<number>(0); // Will be used for area validation later
-
-  // Form state - Step 4: Farming Type
-  const [farmingType, setFarmingType] = useState<FarmingType>('single-layer');
-  const [soilType, setSoilType] = useState<SoilType>('red');
-  const [multilayerCount, setMultilayerCount] = useState(1);
 
   const handleFmbUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -88,8 +80,8 @@ export const FarmCreate = () => {
       name: farmName,
       description: farmDescription,
       location: {
-        lat: parseFloat(locationLat) || 0,
-        lng: parseFloat(locationLng) || 0,
+        lat: 0,
+        lng: 0,
       },
       boundary: {
         points: boundaryPoints,
@@ -129,6 +121,7 @@ export const FarmCreate = () => {
       case 1:
         return (
           <div className="space-y-6">
+            {/* Farm Name and Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Farm Name *
@@ -158,12 +151,11 @@ export const FarmCreate = () => {
                            focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
               />
             </div>
-          </div>
-        );
 
-      case 2:
-        return (
-          <div className="space-y-6">
+            {/* Divider */}
+            <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
+
+            {/* Area */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Area (in acres) *
@@ -183,49 +175,91 @@ export const FarmCreate = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Latitude
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={locationLat}
-                  onChange={(e) => setLocationLat(e.target.value)}
-                  placeholder="e.g., 11.0168"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                             bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
-                             focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Longitude
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={locationLng}
-                  onChange={(e) => setLocationLng(e.target.value)}
-                  placeholder="e.g., 76.9558"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                             bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
-                             focus:ring-2 focus:ring-farm-green-500 focus:border-transparent"
-                />
+            {/* Divider */}
+            <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
+
+            {/* Farming Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Farming Type *
+              </label>
+              <div className="grid grid-cols-1 gap-3">
+                {[
+                  { value: 'single-layer', label: 'Single Layer Farming', desc: 'One type of crop' },
+                  { value: 'multilayer', label: 'Multilayer Farming', desc: 'Multiple crop layers' },
+                  { value: 'livestock-only', label: 'Livestock Only', desc: 'No crops' },
+                  { value: 'empty', label: 'Empty', desc: 'No farming yet' },
+                  { value: 'fallow', label: 'Fallow', desc: 'Resting land' },
+                ].map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                      farmingType === option.value
+                        ? 'border-farm-green-600 bg-farm-green-50 dark:bg-farm-green-900/20'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-farm-green-400'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="farmingType"
+                      value={option.value}
+                      checked={farmingType === option.value}
+                      onChange={(e) => setFarmingType(e.target.value as FarmingType)}
+                      className="w-5 h-5 text-farm-green-600 focus:ring-farm-green-500"
+                    />
+                    <div className="ml-3">
+                      <p className="font-medium text-gray-800 dark:text-gray-100">{option.label}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{option.desc}</p>
+                    </div>
+                  </label>
+                ))}
               </div>
             </div>
 
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <p className="text-sm text-blue-800 dark:text-blue-200">
-                📍 TNGIS Map Integration: Coming soon! You'll be able to select your farm location
-                directly from an interactive map.
-              </p>
+            {/* Multilayer Count */}
+            {farmingType === 'multilayer' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Number of Layers
+                </label>
+                <input
+                  type="number"
+                  min="2"
+                  max="5"
+                  value={multilayerCount}
+                  onChange={(e) => setMultilayerCount(parseInt(e.target.value))}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
+                             bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                             focus:ring-2 focus:ring-farm-green-500"
+                />
+              </div>
+            )}
+
+            {/* Soil Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Soil Type *
+              </label>
+              <select
+                value={soilType}
+                onChange={(e) => setSoilType(e.target.value as SoilType)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
+                           bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
+                           focus:ring-2 focus:ring-farm-green-500"
+              >
+                <option value="red">Red Soil</option>
+                <option value="black">Black Soil</option>
+                <option value="alluvial">Alluvial Soil</option>
+                <option value="clay">Clay Soil</option>
+                <option value="sandy">Sandy Soil</option>
+                <option value="loamy">Loamy Soil</option>
+                <option value="limestone">Limestone Soil</option>
+              </select>
             </div>
           </div>
         );
 
-      case 3:
+      case 2:
         return (
           <div className="space-y-6">
             <div>
@@ -340,87 +374,6 @@ export const FarmCreate = () => {
                 </p>
               </div>
             )}
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Farming Type *
-              </label>
-              <div className="grid grid-cols-1 gap-3">
-                {[
-                  { value: 'single-layer', label: 'Single Layer Farming', desc: 'One type of crop' },
-                  { value: 'multilayer', label: 'Multilayer Farming', desc: 'Multiple crop layers' },
-                  { value: 'livestock-only', label: 'Livestock Only', desc: 'No crops' },
-                  { value: 'empty', label: 'Empty', desc: 'No farming yet' },
-                  { value: 'fallow', label: 'Fallow', desc: 'Resting land' },
-                ].map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                      farmingType === option.value
-                        ? 'border-farm-green-600 bg-farm-green-50 dark:bg-farm-green-900/20'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-farm-green-400'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="farmingType"
-                      value={option.value}
-                      checked={farmingType === option.value}
-                      onChange={(e) => setFarmingType(e.target.value as FarmingType)}
-                      className="w-5 h-5 text-farm-green-600 focus:ring-farm-green-500"
-                    />
-                    <div className="ml-3">
-                      <p className="font-medium text-gray-800 dark:text-gray-100">{option.label}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{option.desc}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {farmingType === 'multilayer' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Number of Layers
-                </label>
-                <input
-                  type="number"
-                  min="2"
-                  max="5"
-                  value={multilayerCount}
-                  onChange={(e) => setMultilayerCount(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                             bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
-                             focus:ring-2 focus:ring-farm-green-500"
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Soil Type *
-              </label>
-              <select
-                value={soilType}
-                onChange={(e) => setSoilType(e.target.value as SoilType)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600
-                           bg-pearl dark:bg-bg-dark text-gray-800 dark:text-gray-100
-                           focus:ring-2 focus:ring-farm-green-500"
-              >
-                <option value="red">Red Soil</option>
-                <option value="black">Black Soil</option>
-                <option value="alluvial">Alluvial Soil</option>
-                <option value="clay">Clay Soil</option>
-                <option value="sandy">Sandy Soil</option>
-                <option value="loamy">Loamy Soil</option>
-                <option value="limestone">Limestone Soil</option>
-              </select>
-            </div>
           </div>
         );
 

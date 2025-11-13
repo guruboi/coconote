@@ -14,6 +14,9 @@ export const FarmView = () => {
   const [showStats, setShowStats] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [draggingElement, setDraggingElement] = useState<any>(null);
+  const [showEditFarmInfo, setShowEditFarmInfo] = useState(false);
+  const [editFarmName, setEditFarmName] = useState('');
+  const [editFarmDescription, setEditFarmDescription] = useState('');
 
   useEffect(() => {
     if (!farm) {
@@ -66,6 +69,24 @@ export const FarmView = () => {
 
   const handleElementDragStart = (element: any) => {
     setDraggingElement(element);
+  };
+
+  const handleOpenEditFarmInfo = () => {
+    if (farm) {
+      setEditFarmName(farm.name);
+      setEditFarmDescription(farm.description || '');
+      setShowEditFarmInfo(true);
+    }
+  };
+
+  const handleSaveFarmInfo = () => {
+    if (farm && editFarmName.trim()) {
+      updateFarm(farm.id, {
+        name: editFarmName.trim(),
+        description: editFarmDescription.trim(),
+      });
+      setShowEditFarmInfo(false);
+    }
   };
 
   return (
@@ -300,6 +321,61 @@ export const FarmView = () => {
           </div>
         )}
 
+        {/* Edit Farm Info Dialog */}
+        {showEditFarmInfo && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+                ✏️ Edit Farm Info
+              </h2>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Farm Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editFarmName}
+                    onChange={(e) => setEditFarmName(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    placeholder="Enter farm name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={editFarmDescription}
+                    onChange={(e) => setEditFarmDescription(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    placeholder="Enter farm description"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowEditFarmInfo(false)}
+                  className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveFarmInfo}
+                  className="flex-1 px-4 py-3 bg-farm-green-600 text-white rounded-lg hover:bg-farm-green-700 transition-colors font-semibold"
+                >
+                  Save
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {/* Edit Mode Panel */}
         <AnimatePresence>
           {viewState.mode === 'edit' && (
@@ -310,7 +386,12 @@ export const FarmView = () => {
               transition={{ type: 'spring', damping: 20 }}
               className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto"
             >
-              <ElementPalette onDragStart={handleElementDragStart} />
+              <ElementPalette
+                onDragStart={handleElementDragStart}
+                farmName={farm.name}
+                farmDescription={farm.description}
+                onEditFarmInfo={handleOpenEditFarmInfo}
+              />
 
               <div className="p-6">
                 {/* Buildings */}

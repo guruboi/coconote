@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import type { Farm, Point } from '@/types/farm.types';
 import { useFarmStore } from '@/stores/farmStore';
 
@@ -297,13 +297,17 @@ export const FarmRenderer = ({
   };
 
   // Add global mouse event listeners for drag
-  useMemo(() => {
-    if (isEditMode) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+  useEffect(() => {
+    if (isEditMode && dragState.isDragging) {
+      const handleMove = (e: MouseEvent) => handleMouseMove(e);
+      const handleUp = (e: MouseEvent) => handleMouseUp(e);
+
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleUp);
+
       return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mousemove', handleMove);
+        window.removeEventListener('mouseup', handleUp);
       };
     }
   }, [dragState.isDragging, isEditMode]);
@@ -698,7 +702,6 @@ export const FarmRenderer = ({
         {renderPlants()}
         {renderBuildings()}
         {renderOtherElements()}
-        {renderEntry()}
 
         {/* Farm info overlay */}
         <g>
