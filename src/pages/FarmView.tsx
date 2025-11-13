@@ -1,21 +1,26 @@
 import { useFarmStore } from '@/stores/farmStore';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FarmRenderer } from '@/components/FarmRenderer';
 
 export const FarmView = () => {
   const navigate = useNavigate();
-  const { getCurrentFarm, viewState, setMode, setSelectedLayer, deleteFarm } = useFarmStore();
+  const { getCurrentFarm, viewState, setMode, setSelectedLayer, deleteFarm, updateFarm } = useFarmStore();
   const farm = getCurrentFarm();
 
   const [showGrid, setShowGrid] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editingName, setEditingName] = useState('');
+  const [editingDescription, setEditingDescription] = useState('');
 
   useEffect(() => {
     if (!farm) {
       navigate('/');
+    } else {
+      setEditingName(farm.name);
+      setEditingDescription(farm.description || '');
     }
   }, [farm, navigate]);
 
@@ -34,6 +39,40 @@ export const FarmView = () => {
     if (farm) {
       deleteFarm(farm.id);
       navigate('/');
+    }
+  };
+
+  const handleUpdateFarmInfo = () => {
+    if (farm && editingName.trim()) {
+      updateFarm(farm.id, {
+        name: editingName.trim(),
+        description: editingDescription.trim(),
+      });
+    }
+  };
+
+  const handleDeleteBuilding = (buildingId: string) => {
+    if (farm) {
+      updateFarm(farm.id, {
+        buildings: farm.buildings.filter(b => b.id !== buildingId),
+      });
+    }
+  };
+
+  const handleDeletePlantConfig = (configId: string) => {
+    if (farm) {
+      updateFarm(farm.id, {
+        plantConfigurations: farm.plantConfigurations.filter(c => c.id !== configId),
+        plants: farm.plants.filter(p => p.configId !== configId),
+      });
+    }
+  };
+
+  const handleDeleteElement = (elementId: string) => {
+    if (farm) {
+      updateFarm(farm.id, {
+        otherElements: farm.otherElements.filter(e => e.id !== elementId),
+      });
     }
   };
 
@@ -266,6 +305,184 @@ export const FarmView = () => {
             </motion.div>
           </div>
         )}
+
+        {/* Edit Mode Panel */}
+        <AnimatePresence>
+          {viewState.mode === 'edit' && (
+            <motion.div
+              initial={{ x: 400 }}
+              animate={{ x: 0 }}
+              exit={{ x: 400 }}
+              transition={{ type: 'spring', damping: 20 }}
+              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto"
+            >
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                  ✏️ Edit Farm
+                </h2>
+
+                {/* Edit Farm Info */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                    Farm Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Farm Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Description
+                      </label>
+                      <textarea
+                        value={editingDescription}
+                        onChange={(e) => setEditingDescription(e.target.value)}
+                        rows={3}
+                        className="w-full px-4 py-2 rounded-lg bg-frost dark:bg-bg-dark text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      />
+                    </div>
+                    <button
+                      onClick={handleUpdateFarmInfo}
+                      className="w-full px-4 py-2 bg-farm-green-600 text-pearl rounded-lg hover:bg-farm-green-700 transition-colors font-semibold"
+                    >
+                      Update Information
+                    </button>
+                  </div>
+                </div>
+
+                {/* Buildings */}
+                {farm.buildings.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                      Buildings ({farm.buildings.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {farm.buildings.map((building) => (
+                        <div
+                          key={building.id}
+                          className="flex items-center justify-between p-3 bg-frost dark:bg-bg-dark rounded-lg border border-gray-200 dark:border-gray-700"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">
+                              {building.type === 'house' ? '🏠' :
+                               building.type === 'livestock-shed' ? '🐄' :
+                               building.type === 'storage' ? '📦' : '⚡'}
+                            </span>
+                            <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                              {building.name || building.type}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteBuilding(building.id)}
+                            className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            title="Delete building"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Plant Configurations */}
+                {farm.plantConfigurations.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                      Plant Configurations ({farm.plantConfigurations.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {farm.plantConfigurations.map((config) => (
+                        <div
+                          key={config.id}
+                          className="flex items-center justify-between p-3 bg-frost dark:bg-bg-dark rounded-lg border border-gray-200 dark:border-gray-700"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">
+                              {config.category === 'tree' ? '🌴' :
+                               config.category === 'plant' ? '🌿' : '🌾'}
+                            </span>
+                            <div>
+                              <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                {config.name}
+                              </div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">
+                                {config.rows}×{config.columns} = {config.rows * config.columns} plants
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeletePlantConfig(config.id)}
+                            className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            title="Delete configuration"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Other Elements */}
+                {farm.otherElements.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                      Other Elements ({farm.otherElements.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {farm.otherElements.map((element) => (
+                        <div
+                          key={element.id}
+                          className="flex items-center justify-between p-3 bg-frost dark:bg-bg-dark rounded-lg border border-gray-200 dark:border-gray-700"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">
+                              {element.type === 'well' ? '🏗️' :
+                               element.type === 'borewell' ? '⚙️' :
+                               element.type === 'bee-box' ? '🐝' : '📍'}
+                            </span>
+                            <div>
+                              <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                {element.name}
+                              </div>
+                              {element.quantity && (
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  Quantity: {element.quantity}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteElement(element.id)}
+                            className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            title="Delete element"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-400">
+                    <strong>Edit Mode:</strong> Update farm information and manage farm elements. Click on any element's delete button to remove it from the farm.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
