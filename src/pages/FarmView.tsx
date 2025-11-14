@@ -40,6 +40,7 @@ export const FarmView = () => {
   const [currentPipelinePoints, setCurrentPipelinePoints] = useState<Point[]>([]);
   const [pipelineType, setPipelineType] = useState<'irrigation' | 'underground'>('irrigation');
   const [selectedPathPoints, setSelectedPathPoints] = useState<{ pathId: string; indices: number[] }[]>([]);
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!farm) {
@@ -500,6 +501,7 @@ export const FarmView = () => {
             pipelineType={pipelineType}
             selectedPathPoints={selectedPathPoints}
             onSelectedPathPointsChange={setSelectedPathPoints}
+            onBuildingClick={setSelectedBuildingId}
           />
         </motion.div>
 
@@ -1308,6 +1310,129 @@ export const FarmView = () => {
                   Add Animal
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Building Interior Modal */}
+        {selectedBuildingId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-2xl w-full shadow-2xl max-h-[80vh] overflow-y-auto"
+            >
+              {(() => {
+                const building = farm.buildings.find(b => b.id === selectedBuildingId);
+                if (!building) return null;
+
+                const getBuildingIcon = (type: string) => {
+                  const icons: Record<string, string> = {
+                    'house': '🏠',
+                    'livestock-shed': '🐄',
+                    'storage': '📦',
+                    'motor-room': '⚡',
+                  };
+                  return icons[type] || '🏗️';
+                };
+
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3">
+                        <span className="text-4xl">{getBuildingIcon(building.type)}</span>
+                        {building.name}
+                      </h2>
+                      <button
+                        onClick={() => setSelectedBuildingId(null)}
+                        className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {building.type === 'house' && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">🛠️ Tools & Equipment</h3>
+                        <div className="space-y-2">
+                          <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <span className="text-gray-600 dark:text-gray-400">Farming tools inventory</span>
+                          </div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 italic">Tool tracking feature coming soon...</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {building.type === 'livestock-shed' && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">🐄 Livestock Inside</h3>
+                        {farm.livestock.length > 0 ? (
+                          <div className="space-y-3">
+                            {farm.livestock.map(animal => (
+                              <div key={animal.id} className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <div className="font-semibold text-gray-800 dark:text-gray-100">
+                                      {animal.type.charAt(0).toUpperCase() + animal.type.slice(1)} - {animal.tag}
+                                    </div>
+                                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                      Age: {animal.age || 'Unknown'} years
+                                    </div>
+                                  </div>
+                                  <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                                    animal.health === 'excellent' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
+                                    animal.health === 'good' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
+                                    animal.health === 'fair' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
+                                    'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                                  }`}>
+                                    {animal.health.charAt(0).toUpperCase() + animal.health.slice(1)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 dark:text-gray-400 italic">No livestock in shed</p>
+                        )}
+                      </div>
+                    )}
+
+                    {building.type === 'storage' && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">📦 Stored Items</h3>
+                        <div className="space-y-2">
+                          <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <span className="text-gray-600 dark:text-gray-400">Inventory management</span>
+                          </div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 italic">Storage tracking feature coming soon...</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {building.type === 'motor-room' && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">⚡ Equipment Status</h3>
+                        <div className="space-y-3">
+                          <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-700 dark:text-gray-300">Motor Pump</span>
+                              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-lg text-sm font-medium">Operational</span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 italic">Equipment monitoring feature coming soon...</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <p><strong>Size:</strong> {building.size.width} × {building.size.height} cents ({(building.size.width * building.size.height * 435.6).toFixed(0)} sq ft)</p>
+                        <p className="mt-1"><strong>Direction:</strong> {building.direction.charAt(0).toUpperCase() + building.direction.slice(1)}</p>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </motion.div>
           </div>
         )}

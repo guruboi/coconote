@@ -18,6 +18,7 @@ interface FarmRendererProps {
   pipelineType?: 'irrigation' | 'underground';
   selectedPathPoints?: { pathId: string; indices: number[] }[];
   onSelectedPathPointsChange?: (selected: { pathId: string; indices: number[] }[]) => void;
+  onBuildingClick?: (buildingId: string) => void;
 }
 
 interface DragState {
@@ -46,7 +47,8 @@ export const FarmRenderer = ({
   onAddPipelinePoint,
   pipelineType = 'irrigation',
   selectedPathPoints = [],
-  onSelectedPathPointsChange
+  onSelectedPathPointsChange,
+  onBuildingClick
 }: FarmRendererProps) => {
   const { updateFarm } = useFarmStore();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -470,9 +472,15 @@ export const FarmRenderer = ({
       return (
         <g
           key={building.id}
-          style={{ cursor: isEditMode ? 'grab' : 'default' }}
+          style={{ cursor: isEditMode ? 'grab' : 'pointer' }}
           opacity={isDragging ? 0.7 : 1}
           onMouseDown={(e) => isEditMode && handleMouseDown(e, 'building', building.id, building.position.x, building.position.y)}
+          onClick={(e) => {
+            if (!isEditMode && onBuildingClick) {
+              e.stopPropagation();
+              onBuildingClick(building.id);
+            }
+          }}
         >
           <rect
             x={transformed.x - 20}
