@@ -217,7 +217,7 @@ export interface Farm {
 }
 
 // Farm view modes
-export type FarmMode = 'view' | 'edit' | 'pipeline' | 'livestock';
+export type FarmMode = 'view' | 'edit' | 'pipeline' | 'livestock' | 'notes';
 
 // Farm view state
 export interface FarmViewState {

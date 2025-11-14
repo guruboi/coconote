@@ -373,7 +373,7 @@ export const FarmView = () => {
 
         {/* Mode selector */}
         <div className="flex flex-wrap gap-3 mb-6">
-          {(['view', 'edit', 'pipeline', 'livestock'] as const).map((mode) => (
+          {(['view', 'edit', 'pipeline', 'livestock', 'notes'] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => setMode(mode)}
@@ -1161,6 +1161,75 @@ export const FarmView = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Notes Mode Panel */}
+          {viewState.mode === 'notes' && (
+            <motion.div
+              initial={{ x: 400 }}
+              animate={{ x: 0 }}
+              exit={{ x: 400 }}
+              transition={{ type: 'spring', damping: 20 }}
+              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
+            >
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                  📝 Farm Notes & Journal
+                </h2>
+
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                  Track daily activities, observations, and important farm events.
+                </p>
+
+                {/* Notes List */}
+                {farm.farmNotes.length > 0 ? (
+                  <div className="space-y-4">
+                    {farm.farmNotes.slice().reverse().map((note) => (
+                      <div
+                        key={note.id}
+                        className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                              {new Date(note.date).toLocaleDateString()} - {note.type}
+                            </div>
+                            <p className="text-gray-800 dark:text-gray-100">{note.description}</p>
+                          </div>
+                        </div>
+                        {note.cost && (
+                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                            Cost: ₹{note.cost}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-5xl mb-3">📝</div>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      No notes yet
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Start tracking your farm activities
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-500 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-300 font-semibold mb-2">
+                    💡 Note Taking Tips
+                  </p>
+                  <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+                    <li>• Record daily observations</li>
+                    <li>• Track expenses and materials used</li>
+                    <li>• Note weather conditions</li>
+                    <li>• Document pest or disease issues</li>
+                  </ul>
+                </div>
               </div>
             </motion.div>
           )}
