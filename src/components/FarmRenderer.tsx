@@ -147,6 +147,65 @@ export const FarmRenderer = ({
     };
   };
 
+  // Collision detection helper
+  const checkOverlap = (pos1: Point, size1: { width: number; height: number }, pos2: Point, size2: { width: number; height: number }): boolean => {
+    // Convert cents to coordinate units (assuming 1 cent ≈ sqrt(435.6) units on each side)
+    const scale = Math.sqrt(435.6);
+    const box1 = {
+      left: pos1.x,
+      right: pos1.x + size1.width * scale,
+      top: pos1.y,
+      bottom: pos1.y + size1.height * scale,
+    };
+    const box2 = {
+      left: pos2.x,
+      right: pos2.x + size2.width * scale,
+      top: pos2.y,
+      bottom: pos2.y + size2.height * scale,
+    };
+
+    // Check if boxes overlap
+    return !(box1.right < box2.left || box1.left > box2.right || box1.bottom < box2.top || box1.top > box2.bottom);
+  };
+
+  // Check if a new element would collide with existing elements
+  const wouldCollide = (newPos: Point, newSize: { width: number; height: number }, excludeId?: string | null): boolean => {
+    // Check against buildings
+    for (const building of farm.buildings) {
+      if (building.id === excludeId) continue;
+      if (checkOverlap(newPos, newSize, building.position, building.size)) {
+        return true;
+      }
+    }
+
+    // Check against other elements (approximate size if not specified)
+    for (const element of farm.otherElements) {
+      if (element.id === excludeId || element.type === 'path') continue;
+      // Skip if position is a string (general area)
+      if (typeof element.position === 'string') continue;
+      const elementSize = element.size || { width: 0.1, height: 0.1 }; // Default small size for elements like wells
+      if (checkOverlap(newPos, newSize, element.position, elementSize)) {
+        return true;
+      }
+    }
+
+    // Check against plant configurations
+    for (const config of farm.plantConfigurations) {
+      if (config.id === excludeId) continue;
+      // Skip if startingCorner is a string (predefined corner)
+      if (typeof config.startingCorner === 'string') continue;
+      // Calculate plant configuration spread
+      const plantWidth = config.columns * (config.spacingBetweenColumns / 435.6); // Convert sq ft to cents
+      const plantHeight = config.rows * (config.spacingBetweenRows / 435.6);
+      const plantSize = { width: plantWidth, height: plantHeight };
+      if (checkOverlap(newPos, newSize, config.startingCorner, plantSize)) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   // Drag-and-drop handlers for palette elements
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault(); // Required to allow drop
@@ -162,19 +221,35 @@ export const FarmRenderer = ({
 
     // Create element based on category
     if (draggingElement.category === 'building') {
+      const size = {
+        width: draggingElement.defaultSize?.width || 5,
+        height: draggingElement.defaultSize?.height || 5,
+      };
+
+      // Check for collision
+      if (wouldCollide(farmPos, size)) {
+        alert('Cannot place element here - it would overlap with an existing element');
+        return;
+      }
+
       const newBuilding = {
         id: Date.now().toString(),
         type: draggingElement.type,
         name: draggingElement.name,
         position: farmPos,
-        size: {
-          width: draggingElement.defaultSize?.width || 5,
-          height: draggingElement.defaultSize?.height || 5,
-        },
+        size,
         direction: 'north' as const,
       };
       updateFarm(farm.id, { buildings: [...farm.buildings, newBuilding] });
     } else if (draggingElement.category === 'element') {
+      const elementSize = { width: 0.1, height: 0.1 }; // Default size for elements
+
+      // Check for collision
+      if (wouldCollide(farmPos, elementSize)) {
+        alert('Cannot place element here - it would overlap with an existing element');
+        return;
+      }
+
       const newElement = {
         id: Date.now().toString(),
         type: draggingElement.type,
@@ -251,29 +326,56 @@ export const FarmRenderer = ({
 
   const handleMouseUp = (e: MouseEvent) => {
     if (dragState.isDragging) {
-      // Snap to grid when dropped
       const svgPos = getSvgMousePosition(e);
       const newSvgX = svgPos.x - dragState.offsetX;
       const newSvgY = svgPos.y - dragState.offsetY;
       const farmPos = inverseTransformPoint(newSvgX, newSvgY);
 
-      // Update element position
+      // Update element position with collision detection
       if (dragState.elementType === 'building') {
-        const updatedBuildings = farm.buildings.map(b =>
-          b.id === dragState.elementId ? { ...b, position: farmPos } : b
-        );
-        updateFarm(farm.id, { buildings: updatedBuildings });
+        const building = farm.buildings.find(b => b.id === dragState.elementId);
+        if (building) {
+          // Check for collision (excluding current building)
+          if (wouldCollide(farmPos, building.size, dragState.elementId)) {
+            alert('Cannot move element here - it would overlap with another element');
+          } else {
+            const updatedBuildings = farm.buildings.map(b =>
+              b.id === dragState.elementId ? { ...b, position: farmPos } : b
+            );
+            updateFarm(farm.id, { buildings: updatedBuildings });
+          }
+        }
       } else if (dragState.elementType === 'plantConfig') {
-        const updatedConfigs = farm.plantConfigurations.map(c =>
-          c.id === dragState.elementId ? { ...c, startingCorner: farmPos } : c
-        );
-        updateFarm(farm.id, { plantConfigurations: updatedConfigs });
+        const config = farm.plantConfigurations.find(c => c.id === dragState.elementId);
+        if (config) {
+          const plantWidth = config.columns * (config.spacingBetweenColumns / 435.6);
+          const plantHeight = config.rows * (config.spacingBetweenRows / 435.6);
+          const plantSize = { width: plantWidth, height: plantHeight };
+
+          // Check for collision (excluding current config)
+          if (wouldCollide(farmPos, plantSize, dragState.elementId)) {
+            alert('Cannot move plant configuration here - it would overlap with another element');
+          } else {
+            const updatedConfigs = farm.plantConfigurations.map(c =>
+              c.id === dragState.elementId ? { ...c, startingCorner: farmPos } : c
+            );
+            updateFarm(farm.id, { plantConfigurations: updatedConfigs });
+          }
+        }
       } else if (dragState.elementType === 'otherElement') {
-        const updatedElements = farm.otherElements.map(e =>
-          e.id === dragState.elementId ? { ...e, position: farmPos } : e
-        );
-        updateFarm(farm.id, { otherElements: updatedElements });
+        const elementSize = { width: 0.1, height: 0.1 };
+
+        // Check for collision (excluding current element)
+        if (wouldCollide(farmPos, elementSize, dragState.elementId)) {
+          alert('Cannot move element here - it would overlap with another element');
+        } else {
+          const updatedElements = farm.otherElements.map(e =>
+            e.id === dragState.elementId ? { ...e, position: farmPos } : e
+          );
+          updateFarm(farm.id, { otherElements: updatedElements });
+        }
       } else if (dragState.elementType === 'pathPoint' && dragState.pointIndex !== undefined) {
+        // Path points don't need collision detection
         const updatedElements = farm.otherElements.map(e => {
           if (e.id === dragState.elementId && e.points) {
             const newPoints = [...e.points];
