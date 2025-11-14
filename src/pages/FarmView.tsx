@@ -11,7 +11,6 @@ export const FarmView = () => {
   const { getCurrentFarm, viewState, setMode, setSelectedLayer, deleteFarm, updateFarm } = useFarmStore();
   const farm = getCurrentFarm();
 
-  const [showGrid, setShowGrid] = useState(false);
   const [showStats, setShowStats] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [draggingElement, setDraggingElement] = useState<any>(null);
@@ -40,6 +39,7 @@ export const FarmView = () => {
   const [isDrawingPipeline, setIsDrawingPipeline] = useState(false);
   const [currentPipelinePoints, setCurrentPipelinePoints] = useState<Point[]>([]);
   const [pipelineType, setPipelineType] = useState<'irrigation' | 'underground'>('irrigation');
+  const [selectedPathPoints, setSelectedPathPoints] = useState<{ pathId: string; indices: number[] }[]>([]);
 
   useEffect(() => {
     if (!farm) {
@@ -144,6 +144,33 @@ export const FarmView = () => {
     }
     setIsDrawingPath(false);
     setCurrentPathPoints([]);
+  };
+
+  const handleDeleteSelectedPathPoints = () => {
+    if (!farm || selectedPathPoints.length === 0) return;
+
+    const updatedElements = farm.otherElements.map(element => {
+      if (element.type === 'path' && element.points) {
+        const selection = selectedPathPoints.find(s => s.pathId === element.id);
+        if (selection) {
+          // Remove selected points from this path
+          const newPoints = element.points.filter((_, index) => !selection.indices.includes(index));
+          // If less than 2 points remain, mark path for removal
+          if (newPoints.length < 2) {
+            return null; // Will be filtered out
+          }
+          return { ...element, points: newPoints };
+        }
+      }
+      return element;
+    }).filter(Boolean) as typeof farm.otherElements; // Remove null entries
+
+    updateFarm(farm.id, {
+      otherElements: updatedElements,
+    });
+
+    // Clear selection
+    setSelectedPathPoints([]);
   };
 
   const handleAddPlantConfig = () => {
@@ -315,16 +342,6 @@ export const FarmView = () => {
         {/* Controls */}
         <div className="flex gap-3 mb-6">
           <button
-            onClick={() => setShowGrid(!showGrid)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              showGrid
-                ? 'bg-farm-green-600 text-pearl'
-                : 'bg-pearl dark:bg-bg-dark-alt text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            {showGrid ? '✓' : '○'} Grid
-          </button>
-          <button
             onClick={() => setShowStats(!showStats)}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               showStats
@@ -365,6 +382,14 @@ export const FarmView = () => {
                     ✕ Cancel
                   </button>
                 </>
+              )}
+              {!isDrawingPath && selectedPathPoints.length > 0 && (
+                <button
+                  onClick={handleDeleteSelectedPathPoints}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  🗑️ Delete Selected ({selectedPathPoints.reduce((sum, s) => sum + s.indices.length, 0)} points)
+                </button>
               )}
             </>
           )}
@@ -422,7 +447,6 @@ export const FarmView = () => {
             farm={farm}
             width={1200}
             height={700}
-            showGrid={showGrid}
             currentLayer={viewState.selectedLayer}
             isEditMode={viewState.mode === 'edit'}
             draggingElement={draggingElement}
@@ -433,6 +457,8 @@ export const FarmView = () => {
             currentPipelinePoints={currentPipelinePoints}
             onAddPipelinePoint={handleAddPipelinePoint}
             pipelineType={pipelineType}
+            selectedPathPoints={selectedPathPoints}
+            onSelectedPathPointsChange={setSelectedPathPoints}
           />
         </motion.div>
 

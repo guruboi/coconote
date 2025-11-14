@@ -6,7 +6,6 @@ interface FarmRendererProps {
   farm: Farm;
   width?: number;
   height?: number;
-  showGrid?: boolean;
   currentLayer?: number;
   isEditMode?: boolean;
   draggingElement?: any;
@@ -17,6 +16,8 @@ interface FarmRendererProps {
   currentPipelinePoints?: Point[];
   onAddPipelinePoint?: (point: Point) => void;
   pipelineType?: 'irrigation' | 'underground';
+  selectedPathPoints?: { pathId: string; indices: number[] }[];
+  onSelectedPathPointsChange?: (selected: { pathId: string; indices: number[] }[]) => void;
 }
 
 interface DragState {
@@ -34,7 +35,6 @@ export const FarmRenderer = ({
   farm,
   width = 800,
   height = 600,
-  showGrid = false,
   currentLayer = 1,
   isEditMode = false,
   draggingElement,
@@ -44,7 +44,9 @@ export const FarmRenderer = ({
   isDrawingPipeline = false,
   currentPipelinePoints = [],
   onAddPipelinePoint,
-  pipelineType = 'irrigation'
+  pipelineType = 'irrigation',
+  selectedPathPoints = [],
+  onSelectedPathPointsChange
 }: FarmRendererProps) => {
   const { updateFarm } = useFarmStore();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -145,30 +147,6 @@ export const FarmRenderer = ({
     };
   };
 
-  // Smart snap based on element size in cents
-  const snapToGrid = (farmPos: Point, sizeInCents: number): Point => {
-    const gridSize = bounds.gridCellSize || 1;
-
-    // Calculate how many grid cells this element needs
-    const sqFt = sizeInCents * 435.6; // 1 cent = 435.6 sq ft
-    const cellsNeeded = Math.ceil(sqFt); // Number of 1 sq ft cells
-
-    // For small elements (< 4 cells), snap to single cell
-    if (cellsNeeded < 4) {
-      return {
-        x: Math.round(farmPos.x / gridSize) * gridSize,
-        y: Math.round(farmPos.y / gridSize) * gridSize
-      };
-    }
-
-    // For larger elements, snap to grid aligned rectangular area
-    // Snap top-left corner to grid
-    const snappedX = Math.round(farmPos.x / gridSize) * gridSize;
-    const snappedY = Math.round(farmPos.y / gridSize) * gridSize;
-
-    return { x: snappedX, y: snappedY };
-  };
-
   // Drag-and-drop handlers for palette elements
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault(); // Required to allow drop
@@ -182,17 +160,13 @@ export const FarmRenderer = ({
     const svgPos = { x: e.clientX - (svgRef.current?.getBoundingClientRect().left || 0), y: e.clientY - (svgRef.current?.getBoundingClientRect().top || 0) };
     const farmPos = inverseTransformPoint(svgPos.x, svgPos.y);
 
-    // Get element size
-    const sizeInCents = draggingElement.defaultSize?.width || 1;
-    const snappedPos = snapToGrid(farmPos, sizeInCents);
-
     // Create element based on category
     if (draggingElement.category === 'building') {
       const newBuilding = {
         id: Date.now().toString(),
         type: draggingElement.type,
         name: draggingElement.name,
-        position: snappedPos,
+        position: farmPos,
         size: {
           width: draggingElement.defaultSize?.width || 5,
           height: draggingElement.defaultSize?.height || 5,
@@ -205,7 +179,7 @@ export const FarmRenderer = ({
         id: Date.now().toString(),
         type: draggingElement.type,
         name: draggingElement.name,
-        position: snappedPos,
+        position: farmPos,
         quantity: 1,
         notes: '',
       };
@@ -283,33 +257,23 @@ export const FarmRenderer = ({
       const newSvgY = svgPos.y - dragState.offsetY;
       const farmPos = inverseTransformPoint(newSvgX, newSvgY);
 
-      // Get element size for smart snapping
-      let sizeInCents = 1; // Default size
-      if (dragState.elementType === 'building') {
-        const building = farm.buildings.find(b => b.id === dragState.elementId);
-        sizeInCents = building?.size.width || 5;
-      }
-
-      const snappedPos = snapToGrid(farmPos, sizeInCents);
-
-      // Update element position to snapped grid position
+      // Update element position
       if (dragState.elementType === 'building') {
         const updatedBuildings = farm.buildings.map(b =>
-          b.id === dragState.elementId ? { ...b, position: snappedPos } : b
+          b.id === dragState.elementId ? { ...b, position: farmPos } : b
         );
         updateFarm(farm.id, { buildings: updatedBuildings });
       } else if (dragState.elementType === 'plantConfig') {
         const updatedConfigs = farm.plantConfigurations.map(c =>
-          c.id === dragState.elementId ? { ...c, startingCorner: snappedPos } : c
+          c.id === dragState.elementId ? { ...c, startingCorner: farmPos } : c
         );
         updateFarm(farm.id, { plantConfigurations: updatedConfigs });
       } else if (dragState.elementType === 'otherElement') {
         const updatedElements = farm.otherElements.map(e =>
-          e.id === dragState.elementId ? { ...e, position: snappedPos } : e
+          e.id === dragState.elementId ? { ...e, position: farmPos } : e
         );
         updateFarm(farm.id, { otherElements: updatedElements });
       } else if (dragState.elementType === 'pathPoint' && dragState.pointIndex !== undefined) {
-        // Path points use regular farmPos, not snapped (for smooth curves)
         const updatedElements = farm.otherElements.map(e => {
           if (e.id === dragState.elementId && e.points) {
             const newPoints = [...e.points];
@@ -614,20 +578,70 @@ export const FarmRenderer = ({
           {isEditMode && !isDrawingPath && path.points.map((point, index) => {
             const transformed = transformPoint(point.x, point.y);
             const isDragging = dragState.isDragging && dragState.elementType === 'pathPoint' && dragState.elementId === path.id && dragState.pointIndex === index;
+            const pathSelection = selectedPathPoints.find(s => s.pathId === path.id);
+            const isSelected = pathSelection?.indices.includes(index) ?? false;
 
             return (
               <circle
                 key={`${path.id}-point-${index}`}
                 cx={transformed.x}
                 cy={transformed.y}
-                r={6}
-                fill={isDragging ? "#f59e0b" : "#8b5a3c"}
+                r={isSelected ? 8 : 6}
+                fill={isDragging ? "#f59e0b" : isSelected ? "#3b82f6" : "#8b5a3c"}
                 stroke="white"
                 strokeWidth={2}
-                style={{ cursor: 'move' }}
+                style={{ cursor: isSelected ? 'pointer' : 'move' }}
                 opacity={isDragging ? 0.8 : 1}
-                onMouseDown={(e) => {
+                onClick={(e) => {
                   if (!isEditMode) return;
+                  e.stopPropagation();
+
+                  // Toggle selection
+                  if (onSelectedPathPointsChange) {
+                    const currentSelection = selectedPathPoints.find(s => s.pathId === path.id);
+                    const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
+
+                    if (!currentSelection) {
+                      // No selection for this path yet
+                      if (isMultiSelect) {
+                        onSelectedPathPointsChange([...selectedPathPoints, { pathId: path.id, indices: [index] }]);
+                      } else {
+                        onSelectedPathPointsChange([{ pathId: path.id, indices: [index] }]);
+                      }
+                    } else {
+                      // Path has selection
+                      const indexPos = currentSelection.indices.indexOf(index);
+                      if (indexPos >= 0) {
+                        // Point is selected, deselect it
+                        const newIndices = currentSelection.indices.filter(i => i !== index);
+                        if (newIndices.length === 0) {
+                          // No more points selected for this path
+                          onSelectedPathPointsChange(selectedPathPoints.filter(s => s.pathId !== path.id));
+                        } else {
+                          onSelectedPathPointsChange(
+                            selectedPathPoints.map(s =>
+                              s.pathId === path.id ? { ...s, indices: newIndices } : s
+                            )
+                          );
+                        }
+                      } else {
+                        // Point not selected, add it
+                        if (isMultiSelect) {
+                          onSelectedPathPointsChange(
+                            selectedPathPoints.map(s =>
+                              s.pathId === path.id ? { ...s, indices: [...s.indices, index] } : s
+                            )
+                          );
+                        } else {
+                          // Single select, replace all selections
+                          onSelectedPathPointsChange([{ pathId: path.id, indices: [index] }]);
+                        }
+                      }
+                    }
+                  }
+                }}
+                onMouseDown={(e) => {
+                  if (!isEditMode || isSelected) return; // Don't allow dragging selected points
                   e.stopPropagation();
                   const svgPos = getSvgMousePosition(e as any);
                   const currentSvgPos = transformPoint(point.x, point.y);
@@ -807,57 +821,15 @@ export const FarmRenderer = ({
         onDrop={handleDrop}
         onClick={handleSvgClick}
       >
-        {/* 1 sq ft Grid - clipped to boundary */}
-        {showGrid && bounds.gridCellSize && boundaryPath && (
-          <>
-            <defs>
-              <clipPath id="boundary-clip">
-                <polygon points={boundaryPath} />
-              </clipPath>
-              <pattern
-                id="sqft-grid"
-                width={bounds.gridCellSize * bounds.scale}
-                height={bounds.gridCellSize * bounds.scale}
-                patternUnits="userSpaceOnUse"
-                x={bounds.offsetX - bounds.minX * bounds.scale}
-                y={bounds.offsetY - bounds.minY * bounds.scale}
-              >
-                <path
-                  d={`M ${bounds.gridCellSize * bounds.scale} 0 L 0 0 0 ${bounds.gridCellSize * bounds.scale}`}
-                  fill="none"
-                  stroke="rgba(34, 197, 94, 0.2)"
-                  strokeWidth="0.5"
-                />
-              </pattern>
-            </defs>
-            <rect
-              x={bounds.offsetX}
-              y={bounds.offsetY}
-              width={bounds.width * bounds.scale}
-              height={bounds.height * bounds.scale}
-              fill="url(#sqft-grid)"
-              clipPath="url(#boundary-clip)"
-            />
-          </>
-        )}
-
         {/* Farm boundary with soil color */}
         {boundaryPath && (
-          <>
-            <defs>
-              <linearGradient id="soilGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor={getSoilBackground().light} />
-                <stop offset="100%" stopColor={getSoilBackground().dark} stopOpacity="0.3" />
-              </linearGradient>
-            </defs>
-            <polygon
-              points={boundaryPath}
-              fill="url(#soilGradient)"
-              stroke="#16a34a"
-              strokeWidth={3}
-              strokeLinejoin="round"
-            />
-          </>
+          <polygon
+            points={boundaryPath}
+            fill={getSoilBackground().light}
+            stroke="#16a34a"
+            strokeWidth={3}
+            strokeLinejoin="round"
+          />
         )}
 
         {/* Fence indicator */}
