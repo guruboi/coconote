@@ -458,7 +458,7 @@ export const FarmView = () => {
               animate={{ x: 0 }}
               exit={{ x: 400 }}
               transition={{ type: 'spring', damping: 20 }}
-              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto"
+              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
             >
               <ElementPalette
                 onDragStart={handleElementDragStart}

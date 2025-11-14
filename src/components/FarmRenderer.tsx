@@ -17,8 +17,9 @@ interface FarmRendererProps {
 
 interface DragState {
   isDragging: boolean;
-  elementType: 'building' | 'plantConfig' | 'otherElement' | null;
+  elementType: 'building' | 'plantConfig' | 'otherElement' | 'pathPoint' | null;
   elementId: string | null;
+  pointIndex?: number;
   startX: number;
   startY: number;
   offsetX: number;
@@ -43,6 +44,7 @@ export const FarmRenderer = ({
     isDragging: false,
     elementType: null,
     elementId: null,
+    pointIndex: undefined,
     startX: 0,
     startY: 0,
     offsetX: 0,
@@ -252,6 +254,16 @@ export const FarmRenderer = ({
         e.id === dragState.elementId ? { ...e, position: farmPos } : e
       );
       updateFarm(farm.id, { otherElements: updatedElements });
+    } else if (dragState.elementType === 'pathPoint' && dragState.pointIndex !== undefined) {
+      const updatedElements = farm.otherElements.map(e => {
+        if (e.id === dragState.elementId && e.points) {
+          const newPoints = [...e.points];
+          newPoints[dragState.pointIndex!] = farmPos;
+          return { ...e, points: newPoints };
+        }
+        return e;
+      });
+      updateFarm(farm.id, { otherElements: updatedElements });
     }
   };
 
@@ -288,12 +300,24 @@ export const FarmRenderer = ({
           e.id === dragState.elementId ? { ...e, position: snappedPos } : e
         );
         updateFarm(farm.id, { otherElements: updatedElements });
+      } else if (dragState.elementType === 'pathPoint' && dragState.pointIndex !== undefined) {
+        // Path points use regular farmPos, not snapped (for smooth curves)
+        const updatedElements = farm.otherElements.map(e => {
+          if (e.id === dragState.elementId && e.points) {
+            const newPoints = [...e.points];
+            newPoints[dragState.pointIndex!] = farmPos;
+            return { ...e, points: newPoints };
+          }
+          return e;
+        });
+        updateFarm(farm.id, { otherElements: updatedElements });
       }
 
       setDragState({
         isDragging: false,
         elementType: null,
         elementId: null,
+        pointIndex: undefined,
         startX: 0,
         startY: 0,
         offsetX: 0,
@@ -574,6 +598,41 @@ export const FarmRenderer = ({
             strokeLinejoin="round"
             opacity={0.3}
           />
+          {/* Draggable path points - only show in edit mode when not drawing */}
+          {isEditMode && !isDrawingPath && path.points.map((point, index) => {
+            const transformed = transformPoint(point.x, point.y);
+            const isDragging = dragState.isDragging && dragState.elementType === 'pathPoint' && dragState.elementId === path.id && dragState.pointIndex === index;
+
+            return (
+              <circle
+                key={`${path.id}-point-${index}`}
+                cx={transformed.x}
+                cy={transformed.y}
+                r={6}
+                fill={isDragging ? "#f59e0b" : "#8b5a3c"}
+                stroke="white"
+                strokeWidth={2}
+                style={{ cursor: 'move' }}
+                opacity={isDragging ? 0.8 : 1}
+                onMouseDown={(e) => {
+                  if (!isEditMode) return;
+                  e.stopPropagation();
+                  const svgPos = getSvgMousePosition(e as any);
+                  const currentSvgPos = transformPoint(point.x, point.y);
+                  setDragState({
+                    isDragging: true,
+                    elementType: 'pathPoint',
+                    elementId: path.id,
+                    pointIndex: index,
+                    startX: svgPos.x,
+                    startY: svgPos.y,
+                    offsetX: svgPos.x - currentSvgPos.x,
+                    offsetY: svgPos.y - currentSvgPos.y,
+                  });
+                }}
+              />
+            );
+          })}
         </g>
       );
     });
@@ -630,8 +689,22 @@ export const FarmRenderer = ({
     );
   };
 
+  // Get background color based on soil type
+  const getSoilBackground = () => {
+    const soilBackgrounds = {
+      red: 'bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950 dark:to-orange-950',
+      black: 'bg-gradient-to-br from-gray-700 to-gray-800 dark:from-gray-900 dark:to-black',
+      alluvial: 'bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-yellow-950',
+      clay: 'bg-gradient-to-br from-stone-200 to-stone-300 dark:from-stone-800 dark:to-stone-900',
+      sandy: 'bg-gradient-to-br from-yellow-100 to-amber-100 dark:from-yellow-900 dark:to-amber-900',
+      loamy: 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900',
+      limestone: 'bg-gradient-to-br from-slate-100 to-gray-200 dark:from-slate-800 dark:to-gray-900',
+    };
+    return soilBackgrounds[farm.soilType] || soilBackgrounds.loamy;
+  };
+
   return (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 rounded-lg overflow-hidden">
+    <div className={`w-full h-full flex items-center justify-center ${getSoilBackground()} rounded-lg overflow-hidden`}>
       <svg
         ref={svgRef}
         width={width}
