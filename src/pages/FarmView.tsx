@@ -20,6 +20,16 @@ export const FarmView = () => {
   const [editFarmDescription, setEditFarmDescription] = useState('');
   const [isDrawingPath, setIsDrawingPath] = useState(false);
   const [currentPathPoints, setCurrentPathPoints] = useState<Point[]>([]);
+  const [showAddPlant, setShowAddPlant] = useState(false);
+  const [plantForm, setPlantForm] = useState({
+    name: '',
+    category: 'tree' as 'tree' | 'plant' | 'crop',
+    plantType: '',
+    rows: 1,
+    columns: 1,
+    spacingRows: 10,
+    spacingColumns: 10,
+  });
 
   useEffect(() => {
     if (!farm) {
@@ -124,6 +134,36 @@ export const FarmView = () => {
     }
     setIsDrawingPath(false);
     setCurrentPathPoints([]);
+  };
+
+  const handleAddPlantConfig = () => {
+    if (farm && plantForm.name.trim() && plantForm.plantType.trim()) {
+      const newConfig = {
+        id: Date.now().toString(),
+        name: plantForm.name.trim(),
+        category: plantForm.category,
+        plantType: plantForm.plantType.trim(),
+        rows: plantForm.rows,
+        columns: plantForm.columns,
+        spacingBetweenRows: plantForm.spacingRows,
+        spacingBetweenColumns: plantForm.spacingColumns,
+        startingCorner: 'center' as const,
+        layer: viewState.selectedLayer || 1,
+      };
+      updateFarm(farm.id, {
+        plantConfigurations: [...farm.plantConfigurations, newConfig],
+      });
+      setShowAddPlant(false);
+      setPlantForm({
+        name: '',
+        category: 'tree',
+        plantType: '',
+        rows: 1,
+        columns: 1,
+        spacingRows: 10,
+        spacingColumns: 10,
+      });
+    }
   };
 
   return (
@@ -450,6 +490,150 @@ export const FarmView = () => {
           </div>
         )}
 
+        {/* Add Plant Configuration Modal */}
+        {showAddPlant && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-lg w-full shadow-2xl"
+            >
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+                🌱 Add Plant Configuration
+              </h2>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Configuration Name
+                  </label>
+                  <input
+                    type="text"
+                    value={plantForm.name}
+                    onChange={(e) => setPlantForm({ ...plantForm, name: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    placeholder="e.g., Coconut Grove A"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Category
+                    </label>
+                    <select
+                      value={plantForm.category}
+                      onChange={(e) => setPlantForm({ ...plantForm, category: e.target.value as any })}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    >
+                      <option value="tree">🌴 Tree</option>
+                      <option value="plant">🌿 Plant</option>
+                      <option value="crop">🌾 Crop</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Plant Type
+                    </label>
+                    <input
+                      type="text"
+                      value={plantForm.plantType}
+                      onChange={(e) => setPlantForm({ ...plantForm, plantType: e.target.value })}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      placeholder="e.g., Coconut"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Rows
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={plantForm.rows}
+                      onChange={(e) => setPlantForm({ ...plantForm, rows: parseInt(e.target.value) || 1 })}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Columns
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={plantForm.columns}
+                      onChange={(e) => setPlantForm({ ...plantForm, columns: parseInt(e.target.value) || 1 })}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Row Spacing (ft)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={plantForm.spacingRows}
+                      onChange={(e) => setPlantForm({ ...plantForm, spacingRows: parseInt(e.target.value) || 1 })}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Column Spacing (ft)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={plantForm.spacingColumns}
+                      onChange={(e) => setPlantForm({ ...plantForm, spacingColumns: parseInt(e.target.value) || 1 })}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                </div>
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-300">
+                    Total plants: <strong>{plantForm.rows * plantForm.columns}</strong>
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowAddPlant(false);
+                    setPlantForm({
+                      name: '',
+                      category: 'tree',
+                      plantType: '',
+                      rows: 1,
+                      columns: 1,
+                      spacingRows: 10,
+                      spacingColumns: 10,
+                    });
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddPlantConfig}
+                  disabled={!plantForm.name.trim() || !plantForm.plantType.trim()}
+                  className={`flex-1 px-4 py-3 rounded-lg transition-colors font-semibold ${
+                    plantForm.name.trim() && plantForm.plantType.trim()
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                  }`}
+                >
+                  Add Plants
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {/* Edit Mode Panel */}
         <AnimatePresence>
           {viewState.mode === 'edit' && (
@@ -504,11 +688,19 @@ export const FarmView = () => {
                 )}
 
                 {/* Plant Configurations */}
-                {farm.plantConfigurations.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                       Plant Configurations ({farm.plantConfigurations.length})
                     </h3>
+                    <button
+                      onClick={() => setShowAddPlant(true)}
+                      className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      + Add Plants
+                    </button>
+                  </div>
+                  {farm.plantConfigurations.length > 0 && (
                     <div className="space-y-2">
                       {farm.plantConfigurations.map((config) => (
                         <div
@@ -539,8 +731,8 @@ export const FarmView = () => {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Paths */}
                 {farm.otherElements.filter(e => e.type === 'path').length > 0 && (
