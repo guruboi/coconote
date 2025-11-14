@@ -37,6 +37,9 @@ export const FarmView = () => {
     age: 0,
     health: 'good' as 'excellent' | 'good' | 'fair' | 'poor',
   });
+  const [isDrawingPipeline, setIsDrawingPipeline] = useState(false);
+  const [currentPipelinePoints, setCurrentPipelinePoints] = useState<Point[]>([]);
+  const [pipelineType, setPipelineType] = useState<'irrigation' | 'underground'>('irrigation');
 
   useEffect(() => {
     if (!farm) {
@@ -203,6 +206,46 @@ export const FarmView = () => {
     }
   };
 
+  const handleStartDrawingPipeline = () => {
+    setIsDrawingPipeline(true);
+    setCurrentPipelinePoints([]);
+  };
+
+  const handleCancelDrawingPipeline = () => {
+    setIsDrawingPipeline(false);
+    setCurrentPipelinePoints([]);
+  };
+
+  const handleAddPipelinePoint = (point: Point) => {
+    if (isDrawingPipeline) {
+      setCurrentPipelinePoints(prev => [...prev, point]);
+    }
+  };
+
+  const handleFinishDrawingPipeline = () => {
+    if (farm && currentPipelinePoints.length >= 2) {
+      const newPipeline = {
+        id: Date.now().toString(),
+        points: currentPipelinePoints,
+        type: pipelineType,
+        layer: viewState.selectedLayer || 1,
+      };
+      updateFarm(farm.id, {
+        pipelines: [...farm.pipelines, newPipeline],
+      });
+    }
+    setIsDrawingPipeline(false);
+    setCurrentPipelinePoints([]);
+  };
+
+  const handleDeletePipeline = (pipelineId: string) => {
+    if (farm) {
+      updateFarm(farm.id, {
+        pipelines: farm.pipelines.filter(p => p.id !== pipelineId),
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-frost dark:bg-bg-dark">
       <div className="p-6">
@@ -293,7 +336,7 @@ export const FarmView = () => {
           </button>
 
           {/* Path Drawing Controls - Only in Edit Mode */}
-          {viewState.mode === 'edit' && (
+          {viewState.mode === 'edit' && !isDrawingPipeline && (
             <>
               {!isDrawingPath ? (
                 <button
@@ -325,6 +368,48 @@ export const FarmView = () => {
               )}
             </>
           )}
+
+          {/* Pipeline Drawing Controls - Only in Pipeline Mode */}
+          {viewState.mode === 'pipeline' && (
+            <>
+              <select
+                value={pipelineType}
+                onChange={(e) => setPipelineType(e.target.value as any)}
+                className="px-4 py-2 rounded-lg bg-pearl dark:bg-bg-dark-alt text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600"
+              >
+                <option value="irrigation">💧 Irrigation</option>
+                <option value="underground">🕳️ Underground</option>
+              </select>
+              {!isDrawingPipeline ? (
+                <button
+                  onClick={handleStartDrawingPipeline}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  🚰 Draw Pipeline
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleFinishDrawingPipeline}
+                    disabled={currentPipelinePoints.length < 2}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      currentPipelinePoints.length >= 2
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    }`}
+                  >
+                    ✓ Finish Pipeline ({currentPipelinePoints.length} points)
+                  </button>
+                  <button
+                    onClick={handleCancelDrawingPipeline}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                  >
+                    ✕ Cancel
+                  </button>
+                </>
+              )}
+            </>
+          )}
         </div>
 
         {/* Farm canvas area */}
@@ -344,6 +429,10 @@ export const FarmView = () => {
             isDrawingPath={isDrawingPath}
             currentPathPoints={currentPathPoints}
             onAddPathPoint={handleAddPathPoint}
+            isDrawingPipeline={isDrawingPipeline}
+            currentPipelinePoints={currentPipelinePoints}
+            onAddPipelinePoint={handleAddPipelinePoint}
+            pipelineType={pipelineType}
           />
         </motion.div>
 
@@ -974,6 +1063,82 @@ export const FarmView = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Pipeline Mode Panel */}
+          {viewState.mode === 'pipeline' && (
+            <motion.div
+              initial={{ x: 400 }}
+              animate={{ x: 0 }}
+              exit={{ x: 400 }}
+              transition={{ type: 'spring', damping: 20 }}
+              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
+            >
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                  🚰 Pipeline Management
+                </h2>
+
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                  Use the controls above to draw irrigation or underground pipelines on your farm.
+                </p>
+
+                {/* Pipelines List */}
+                {farm.pipelines.length > 0 ? (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                      Pipelines ({farm.pipelines.length})
+                    </h3>
+                    {farm.pipelines.map((pipeline) => (
+                      <div
+                        key={pipeline.id}
+                        className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <div className="font-semibold text-gray-800 dark:text-gray-100 capitalize">
+                              {pipeline.type === 'irrigation' ? '💧' : '🕳️'} {pipeline.type} Pipeline
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {pipeline.points?.length || 0} connection points
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeletePipeline(pipeline.id)}
+                            className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            title="Delete pipeline"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-5xl mb-3">🚰</div>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      No pipelines added yet
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                      Use the "Draw Pipeline" button above to add irrigation systems
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                    💡 Tips
+                  </h3>
+                  <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+                    <li>• Click points on the farm to draw pipeline routes</li>
+                    <li>• Irrigation pipelines shown in blue</li>
+                    <li>• Underground pipelines shown dashed in brown</li>
+                    <li>• Minimum 2 points required to create a pipeline</li>
+                  </ul>
+                </div>
               </div>
             </motion.div>
           )}

@@ -13,10 +13,12 @@ interface ElementDef {
 const COMMON_ELEMENTS: ElementDef[] = [
   { id: 'house', type: 'house', name: 'House', icon: '🏠', defaultSize: { width: 3, height: 3 }, category: 'building' }, // ~1300 sq ft
   { id: 'cow', type: 'livestock', name: 'Cow', icon: '🐄', defaultSize: { width: 0.1, height: 0.1 }, category: 'element' }, // ~40 sq ft per cow
-  { id: 'coconut', type: 'tree', name: 'Coconut Tree', icon: '🌴', defaultSize: { width: 0.02, height: 0.02 }, category: 'plant' }, // ~10 sq ft (tree canopy footprint)
   { id: 'well', type: 'well', name: 'Well', icon: '💧', defaultSize: { width: 0.03, height: 0.03 }, category: 'element' }, // ~15 sq ft
+  { id: 'borewell', type: 'borewell', name: 'Borewell', icon: '🕳️', defaultSize: { width: 0.02, height: 0.02 }, category: 'element' }, // ~10 sq ft
   { id: 'storage', type: 'storage', name: 'Storage', icon: '📦', defaultSize: { width: 0.7, height: 0.7 }, category: 'building' }, // ~300 sq ft
   { id: 'shed', type: 'livestock-shed', name: 'Livestock Shed', icon: '🏚️', defaultSize: { width: 0.6, height: 0.6 }, category: 'building' }, // ~250 sq ft
+  { id: 'motor-room', type: 'motor-room', name: 'Motor Room', icon: '⚡', defaultSize: { width: 0.3, height: 0.3 }, category: 'building' }, // ~130 sq ft
+  { id: 'bee-box', type: 'bee-box', name: 'Bee Box', icon: '🐝', defaultSize: { width: 0.05, height: 0.05 }, category: 'element' }, // ~20 sq ft
 ];
 
 interface ElementPaletteProps {
@@ -80,8 +82,9 @@ export const ElementPalette = ({ onDragStart, farmName, farmDescription, onEditF
             draggable
             onDragStart={() => onDragStart(element)}
             className="px-4 py-3 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-grab active:cursor-grabbing border border-gray-200 dark:border-gray-600 flex items-center space-x-3"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.05, y: -2, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
           >
             <span className="text-2xl">{element.icon}</span>
             <div className="flex-1">

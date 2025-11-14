@@ -13,6 +13,10 @@ interface FarmRendererProps {
   isDrawingPath?: boolean;
   currentPathPoints?: Point[];
   onAddPathPoint?: (point: Point) => void;
+  isDrawingPipeline?: boolean;
+  currentPipelinePoints?: Point[];
+  onAddPipelinePoint?: (point: Point) => void;
+  pipelineType?: 'irrigation' | 'underground';
 }
 
 interface DragState {
@@ -36,7 +40,11 @@ export const FarmRenderer = ({
   draggingElement,
   isDrawingPath = false,
   currentPathPoints = [],
-  onAddPathPoint
+  onAddPathPoint,
+  isDrawingPipeline = false,
+  currentPipelinePoints = [],
+  onAddPipelinePoint,
+  pipelineType = 'irrigation'
 }: FarmRendererProps) => {
   const { updateFarm } = useFarmStore();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -556,13 +564,17 @@ export const FarmRenderer = ({
     });
   };
 
-  // Handle SVG click for path drawing
+  // Handle SVG click for path and pipeline drawing
   const handleSvgClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!isDrawingPath || !onAddPathPoint) return;
-
-    const svgPos = getSvgMousePosition(e);
-    const farmPos = inverseTransformPoint(svgPos.x, svgPos.y);
-    onAddPathPoint(farmPos);
+    if (isDrawingPath && onAddPathPoint) {
+      const svgPos = getSvgMousePosition(e);
+      const farmPos = inverseTransformPoint(svgPos.x, svgPos.y);
+      onAddPathPoint(farmPos);
+    } else if (isDrawingPipeline && onAddPipelinePoint) {
+      const svgPos = getSvgMousePosition(e);
+      const farmPos = inverseTransformPoint(svgPos.x, svgPos.y);
+      onAddPipelinePoint(farmPos);
+    }
   };
 
   // Render paths
@@ -689,29 +701,108 @@ export const FarmRenderer = ({
     );
   };
 
+  // Render pipelines
+  const renderPipelines = () => {
+    return farm.pipelines.map((pipeline) => {
+      if (!pipeline.points || pipeline.points.length < 2) return null;
+
+      const pathString = pipeline.points.map((point, index) => {
+        const transformed = transformPoint(point.x, point.y);
+        return `${index === 0 ? 'M' : 'L'} ${transformed.x} ${transformed.y}`;
+      }).join(' ');
+
+      const color = pipeline.type === 'irrigation' ? '#3b82f6' : '#8b5a3c';
+
+      return (
+        <g key={pipeline.id}>
+          <path
+            d={pathString}
+            fill="none"
+            stroke={color}
+            strokeWidth={pipeline.type === 'irrigation' ? 4 : 6}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={pipeline.type === 'underground' ? '8,4' : 'none'}
+          />
+        </g>
+      );
+    });
+  };
+
+  // Render current pipeline being drawn
+  const renderCurrentPipeline = () => {
+    if (!isDrawingPipeline || currentPipelinePoints.length === 0) return null;
+
+    const pathString = currentPipelinePoints.map((point, index) => {
+      const transformed = transformPoint(point.x, point.y);
+      return `${index === 0 ? 'M' : 'L'} ${transformed.x} ${transformed.y}`;
+    }).join(' ');
+
+    const color = pipelineType === 'irrigation' ? '#3b82f6' : '#8b5a3c';
+
+    return (
+      <g>
+        <path
+          d={pathString}
+          fill="none"
+          stroke={color}
+          strokeWidth={pipelineType === 'irrigation' ? 4 : 6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="5,5"
+        />
+        {currentPipelinePoints.map((point, index) => {
+          const transformed = transformPoint(point.x, point.y);
+          return (
+            <g key={index}>
+              <circle
+                cx={transformed.x}
+                cy={transformed.y}
+                r={5}
+                fill={color}
+                stroke="white"
+                strokeWidth={2}
+              />
+              <text
+                x={transformed.x}
+                y={transformed.y - 12}
+                textAnchor="middle"
+                fontSize="10"
+                fill={color}
+                fontWeight="bold"
+              >
+                {index + 1}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
   // Get background color based on soil type
   const getSoilBackground = () => {
-    const soilBackgrounds = {
-      red: 'bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950 dark:to-orange-950',
-      black: 'bg-gradient-to-br from-gray-700 to-gray-800 dark:from-gray-900 dark:to-black',
-      alluvial: 'bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-yellow-950',
-      clay: 'bg-gradient-to-br from-stone-200 to-stone-300 dark:from-stone-800 dark:to-stone-900',
-      sandy: 'bg-gradient-to-br from-yellow-100 to-amber-100 dark:from-yellow-900 dark:to-amber-900',
-      loamy: 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900',
-      limestone: 'bg-gradient-to-br from-slate-100 to-gray-200 dark:from-slate-800 dark:to-gray-900',
+    const soilColors = {
+      red: { light: '#fed7aa', dark: '#7c2d12' },
+      black: { light: '#4b5563', dark: '#18181b' },
+      alluvial: { light: '#fef3c7', dark: '#78350f' },
+      clay: { light: '#d6d3d1', dark: '#292524' },
+      sandy: { light: '#fde68a', dark: '#78350f' },
+      loamy: { light: '#d1fae5', dark: '#064e3b' },
+      limestone: { light: '#e2e8f0', dark: '#1e293b' },
     };
-    return soilBackgrounds[farm.soilType] || soilBackgrounds.loamy;
+    return soilColors[farm.soilType] || soilColors.loamy;
   };
 
   return (
-    <div className={`w-full h-full flex items-center justify-center ${getSoilBackground()} rounded-lg overflow-hidden`}>
+    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 rounded-lg overflow-hidden">
       <svg
         ref={svgRef}
         width={width}
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         className="max-w-full h-auto"
-        style={{ cursor: isDrawingPath ? 'crosshair' : dragState.isDragging ? 'grabbing' : 'default' }}
+        style={{ cursor: (isDrawingPath || isDrawingPipeline) ? 'crosshair' : dragState.isDragging ? 'grabbing' : 'default' }}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onClick={handleSvgClick}
@@ -750,15 +841,23 @@ export const FarmRenderer = ({
           </>
         )}
 
-        {/* Farm boundary */}
+        {/* Farm boundary with soil color */}
         {boundaryPath && (
-          <polygon
-            points={boundaryPath}
-            fill="rgba(34, 197, 94, 0.1)"
-            stroke="#16a34a"
-            strokeWidth={3}
-            strokeLinejoin="round"
-          />
+          <>
+            <defs>
+              <linearGradient id="soilGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor={getSoilBackground().light} />
+                <stop offset="100%" stopColor={getSoilBackground().dark} stopOpacity="0.3" />
+              </linearGradient>
+            </defs>
+            <polygon
+              points={boundaryPath}
+              fill="url(#soilGradient)"
+              stroke="#16a34a"
+              strokeWidth={3}
+              strokeLinejoin="round"
+            />
+          </>
         )}
 
         {/* Fence indicator */}
@@ -819,11 +918,13 @@ export const FarmRenderer = ({
         })}
 
         {/* Render all farm elements */}
+        {renderPipelines()}
         {renderPaths()}
         {renderPlants()}
         {renderBuildings()}
         {renderOtherElements()}
         {renderCurrentPath()}
+        {renderCurrentPipeline()}
 
         {/* Farm info overlay */}
         <g>
