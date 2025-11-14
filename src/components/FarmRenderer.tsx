@@ -208,6 +208,36 @@ export const FarmRenderer = ({
     return false;
   };
 
+  // Find nearby non-overlapping position
+  const findNearbyPosition = (pos: Point, size: { width: number; height: number }, excludeId?: string | null, maxDistance: number = 100): Point => {
+    // Try the original position first
+    if (!wouldCollide(pos, size, excludeId)) {
+      return pos;
+    }
+
+    // Try positions in expanding circles around the original position
+    const scale = Math.sqrt(435.6); // Convert cents to coordinate units
+    const step = size.width * scale / 2; // Use half the element width as step size
+
+    for (let radius = step; radius <= maxDistance; radius += step) {
+      // Try 8 positions around the circle
+      for (let angle = 0; angle < 360; angle += 45) {
+        const radian = (angle * Math.PI) / 180;
+        const testPos = {
+          x: pos.x + radius * Math.cos(radian),
+          y: pos.y + radius * Math.sin(radian)
+        };
+
+        if (!wouldCollide(testPos, size, excludeId)) {
+          return testPos;
+        }
+      }
+    }
+
+    // If no position found, return original (edge case)
+    return pos;
+  };
+
   // Drag-and-drop handlers for palette elements
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault(); // Required to allow drop
@@ -228,17 +258,14 @@ export const FarmRenderer = ({
         height: draggingElement.defaultSize?.height || 5,
       };
 
-      // Check for collision
-      if (wouldCollide(farmPos, size)) {
-        alert('Cannot place element here - it would overlap with an existing element');
-        return;
-      }
+      // Find nearby non-overlapping position
+      const finalPos = findNearbyPosition(farmPos, size);
 
       const newBuilding = {
         id: Date.now().toString(),
         type: draggingElement.type,
         name: draggingElement.name,
-        position: farmPos,
+        position: finalPos,
         size,
         direction: 'north' as const,
       };
@@ -246,17 +273,33 @@ export const FarmRenderer = ({
     } else if (draggingElement.category === 'element') {
       const elementSize = { width: 0.1, height: 0.1 }; // Default size for elements
 
-      // Check for collision
-      if (wouldCollide(farmPos, elementSize)) {
-        alert('Cannot place element here - it would overlap with an existing element');
-        return;
+      // Find nearby non-overlapping position
+      const finalPos = findNearbyPosition(farmPos, elementSize);
+
+      // Special handling for livestock (cow)
+      if (draggingElement.type === 'livestock') {
+        // Check if there's a shed to automatically assign to
+        const shed = farm.buildings.find(b => b.type === 'livestock-shed');
+
+        if (shed) {
+          // Create livestock entry instead of other element
+          const newLivestock = {
+            id: Date.now().toString(),
+            type: 'cow' as const,
+            tag: `COW-${Date.now()}`,
+            age: 0,
+            health: 'good' as const,
+          };
+          updateFarm(farm.id, { livestock: [...farm.livestock, newLivestock] });
+          return; // Don't create the element on the farm
+        }
       }
 
       const newElement = {
         id: Date.now().toString(),
         type: draggingElement.type,
         name: draggingElement.name,
-        position: farmPos,
+        position: finalPos,
         quantity: 1,
         notes: '',
       };
@@ -333,19 +376,16 @@ export const FarmRenderer = ({
       const newSvgY = svgPos.y - dragState.offsetY;
       const farmPos = inverseTransformPoint(newSvgX, newSvgY);
 
-      // Update element position with collision detection
+      // Update element position with smart positioning
       if (dragState.elementType === 'building') {
         const building = farm.buildings.find(b => b.id === dragState.elementId);
         if (building) {
-          // Check for collision (excluding current building)
-          if (wouldCollide(farmPos, building.size, dragState.elementId)) {
-            alert('Cannot move element here - it would overlap with another element');
-          } else {
-            const updatedBuildings = farm.buildings.map(b =>
-              b.id === dragState.elementId ? { ...b, position: farmPos } : b
-            );
-            updateFarm(farm.id, { buildings: updatedBuildings });
-          }
+          // Find nearby non-overlapping position (excluding current building)
+          const finalPos = findNearbyPosition(farmPos, building.size, dragState.elementId);
+          const updatedBuildings = farm.buildings.map(b =>
+            b.id === dragState.elementId ? { ...b, position: finalPos } : b
+          );
+          updateFarm(farm.id, { buildings: updatedBuildings });
         }
       } else if (dragState.elementType === 'plantConfig') {
         const config = farm.plantConfigurations.find(c => c.id === dragState.elementId);
@@ -354,28 +394,22 @@ export const FarmRenderer = ({
           const plantHeight = config.rows * (config.spacingBetweenRows / 435.6);
           const plantSize = { width: plantWidth, height: plantHeight };
 
-          // Check for collision (excluding current config)
-          if (wouldCollide(farmPos, plantSize, dragState.elementId)) {
-            alert('Cannot move plant configuration here - it would overlap with another element');
-          } else {
-            const updatedConfigs = farm.plantConfigurations.map(c =>
-              c.id === dragState.elementId ? { ...c, startingCorner: farmPos } : c
-            );
-            updateFarm(farm.id, { plantConfigurations: updatedConfigs });
-          }
+          // Find nearby non-overlapping position (excluding current config)
+          const finalPos = findNearbyPosition(farmPos, plantSize, dragState.elementId);
+          const updatedConfigs = farm.plantConfigurations.map(c =>
+            c.id === dragState.elementId ? { ...c, startingCorner: finalPos } : c
+          );
+          updateFarm(farm.id, { plantConfigurations: updatedConfigs });
         }
       } else if (dragState.elementType === 'otherElement') {
         const elementSize = { width: 0.1, height: 0.1 };
 
-        // Check for collision (excluding current element)
-        if (wouldCollide(farmPos, elementSize, dragState.elementId)) {
-          alert('Cannot move element here - it would overlap with another element');
-        } else {
-          const updatedElements = farm.otherElements.map(e =>
-            e.id === dragState.elementId ? { ...e, position: farmPos } : e
-          );
-          updateFarm(farm.id, { otherElements: updatedElements });
-        }
+        // Find nearby non-overlapping position (excluding current element)
+        const finalPos = findNearbyPosition(farmPos, elementSize, dragState.elementId);
+        const updatedElements = farm.otherElements.map(e =>
+          e.id === dragState.elementId ? { ...e, position: finalPos } : e
+        );
+        updateFarm(farm.id, { otherElements: updatedElements });
       } else if (dragState.elementType === 'pathPoint' && dragState.pointIndex !== undefined) {
         // Path points don't need collision detection
         const updatedElements = farm.otherElements.map(e => {
@@ -799,26 +833,15 @@ export const FarmRenderer = ({
         {currentPathPoints.map((point, index) => {
           const transformed = transformPoint(point.x, point.y);
           return (
-            <g key={index}>
-              <circle
-                cx={transformed.x}
-                cy={transformed.y}
-                r={6}
-                fill="#3b82f6"
-                stroke="white"
-                strokeWidth={2}
-              />
-              <text
-                x={transformed.x}
-                y={transformed.y - 12}
-                textAnchor="middle"
-                fontSize="10"
-                fill="#3b82f6"
-                fontWeight="bold"
-              >
-                {index + 1}
-              </text>
-            </g>
+            <circle
+              key={index}
+              cx={transformed.x}
+              cy={transformed.y}
+              r={6}
+              fill="#3b82f6"
+              stroke="white"
+              strokeWidth={2}
+            />
           );
         })}
       </g>
@@ -878,26 +901,15 @@ export const FarmRenderer = ({
         {currentPipelinePoints.map((point, index) => {
           const transformed = transformPoint(point.x, point.y);
           return (
-            <g key={index}>
-              <circle
-                cx={transformed.x}
-                cy={transformed.y}
-                r={5}
-                fill={color}
-                stroke="white"
-                strokeWidth={2}
-              />
-              <text
-                x={transformed.x}
-                y={transformed.y - 12}
-                textAnchor="middle"
-                fontSize="10"
-                fill={color}
-                fontWeight="bold"
-              >
-                {index + 1}
-              </text>
-            </g>
+            <circle
+              key={index}
+              cx={transformed.x}
+              cy={transformed.y}
+              r={5}
+              fill={color}
+              stroke="white"
+              strokeWidth={2}
+            />
           );
         })}
       </g>
