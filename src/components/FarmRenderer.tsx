@@ -526,64 +526,6 @@ export const FarmRenderer = ({
     });
   };
 
-  // Render entry point
-  const renderEntry = () => {
-    if (!farm.entry) return null;
-
-    let entryX = 0, entryY = 0;
-    const centerX = bounds.minX + bounds.width / 2;
-    const centerY = bounds.minY + bounds.height / 2;
-
-    switch (farm.entry.side) {
-      case 'north':
-        entryY = bounds.minY;
-        entryX = farm.entry.alignment === 'center' ? centerX :
-                farm.entry.alignment === 'top-left' ? bounds.minX + bounds.width * 0.2 :
-                farm.entry.alignment === 'top-right' ? bounds.maxX - bounds.width * 0.2 :
-                centerX;
-        break;
-      case 'south':
-        entryY = bounds.maxY;
-        entryX = farm.entry.alignment === 'center' ? centerX :
-                farm.entry.alignment === 'bottom-left' ? bounds.minX + bounds.width * 0.2 :
-                farm.entry.alignment === 'bottom-right' ? bounds.maxX - bounds.width * 0.2 :
-                centerX;
-        break;
-      case 'east':
-        entryX = bounds.maxX;
-        entryY = centerY;
-        break;
-      case 'west':
-        entryX = bounds.minX;
-        entryY = centerY;
-        break;
-    }
-
-    const transformed = transformPoint(entryX, entryY);
-
-    return (
-      <g>
-        <circle
-          cx={transformed.x}
-          cy={transformed.y}
-          r={12}
-          fill="#ef4444"
-          stroke="#dc2626"
-          strokeWidth={2}
-        />
-        <text
-          x={transformed.x}
-          y={transformed.y}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize="16"
-        >
-          🚪
-        </text>
-      </g>
-    );
-  };
-
   return (
     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 rounded-lg overflow-hidden">
       <svg
