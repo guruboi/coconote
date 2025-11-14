@@ -18,6 +18,8 @@ interface FarmRendererProps {
   pipelineType?: 'irrigation' | 'underground';
   selectedPathPoints?: { pathId: string; indices: number[] }[];
   onSelectedPathPointsChange?: (selected: { pathId: string; indices: number[] }[]) => void;
+  selectedPipelinePoints?: { pipelineId: string; indices: number[] }[];
+  onSelectedPipelinePointsChange?: (selected: { pipelineId: string; indices: number[] }[]) => void;
   onBuildingClick?: (buildingId: string) => void;
 }
 
@@ -48,6 +50,8 @@ export const FarmRenderer = ({
   pipelineType = 'irrigation',
   selectedPathPoints = [],
   onSelectedPathPointsChange,
+  selectedPipelinePoints = [],
+  onSelectedPipelinePointsChange,
   onBuildingClick
 }: FarmRendererProps) => {
   const { updateFarm } = useFarmStore();
@@ -871,6 +875,73 @@ export const FarmRenderer = ({
             strokeLinejoin="round"
             strokeDasharray={pipeline.type === 'underground' ? '8,4' : 'none'}
           />
+          {/* Selectable pipeline points in edit mode */}
+          {isEditMode && !isDrawingPipeline && pipeline.points.map((point, index) => {
+            const transformed = transformPoint(point.x, point.y);
+            const pipelineSelection = selectedPipelinePoints.find(s => s.pipelineId === pipeline.id);
+            const isSelected = pipelineSelection?.indices.includes(index) ?? false;
+
+            return (
+              <circle
+                key={`${pipeline.id}-point-${index}`}
+                cx={transformed.x}
+                cy={transformed.y}
+                r={isSelected ? 8 : 6}
+                fill={isSelected ? "#10b981" : color}
+                stroke="white"
+                strokeWidth={2}
+                style={{ cursor: 'pointer' }}
+                onClick={(e) => {
+                  if (!isEditMode) return;
+                  e.stopPropagation();
+
+                  // Toggle selection
+                  if (onSelectedPipelinePointsChange) {
+                    const currentSelection = selectedPipelinePoints.find(s => s.pipelineId === pipeline.id);
+                    const isMultiSelect = e.ctrlKey || e.metaKey || e.shiftKey;
+
+                    if (!currentSelection) {
+                      // No selection for this pipeline yet
+                      if (isMultiSelect) {
+                        onSelectedPipelinePointsChange([...selectedPipelinePoints, { pipelineId: pipeline.id, indices: [index] }]);
+                      } else {
+                        onSelectedPipelinePointsChange([{ pipelineId: pipeline.id, indices: [index] }]);
+                      }
+                    } else {
+                      // Pipeline has selection
+                      const indexPos = currentSelection.indices.indexOf(index);
+                      if (indexPos >= 0) {
+                        // Point is selected, deselect it
+                        const newIndices = currentSelection.indices.filter(i => i !== index);
+                        if (newIndices.length === 0) {
+                          // No more points selected for this pipeline
+                          onSelectedPipelinePointsChange(selectedPipelinePoints.filter(s => s.pipelineId !== pipeline.id));
+                        } else {
+                          onSelectedPipelinePointsChange(
+                            selectedPipelinePoints.map(s =>
+                              s.pipelineId === pipeline.id ? { ...s, indices: newIndices } : s
+                            )
+                          );
+                        }
+                      } else {
+                        // Point not selected, add it
+                        if (isMultiSelect) {
+                          onSelectedPipelinePointsChange(
+                            selectedPipelinePoints.map(s =>
+                              s.pipelineId === pipeline.id ? { ...s, indices: [...s.indices, index] } : s
+                            )
+                          );
+                        } else {
+                          // Single select, replace all selections
+                          onSelectedPipelinePointsChange([{ pipelineId: pipeline.id, indices: [index] }]);
+                        }
+                      }
+                    }
+                  }
+                }}
+              />
+            );
+          })}
         </g>
       );
     });

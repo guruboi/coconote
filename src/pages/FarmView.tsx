@@ -40,6 +40,7 @@ export const FarmView = () => {
   const [currentPipelinePoints, setCurrentPipelinePoints] = useState<Point[]>([]);
   const [pipelineType, setPipelineType] = useState<'irrigation' | 'underground'>('irrigation');
   const [selectedPathPoints, setSelectedPathPoints] = useState<{ pathId: string; indices: number[] }[]>([]);
+  const [selectedPipelinePoints, setSelectedPipelinePoints] = useState<{ pipelineId: string; indices: number[] }[]>([]);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -114,9 +115,22 @@ export const FarmView = () => {
   };
 
   const handleStartDrawingPath = () => {
+    // If a point is selected, start from that point
+    if (selectedPathPoints.length > 0) {
+      const selection = selectedPathPoints[0];
+      const path = farm?.otherElements.find(e => e.id === selection.pathId && e.type === 'path');
+      if (path && path.points) {
+        // Get the selected point (use the first selected index)
+        const selectedIndex = selection.indices[0];
+        const selectedPoint = path.points[selectedIndex];
+        setCurrentPathPoints([selectedPoint]);
+      }
+    } else {
+      setCurrentPathPoints([]);
+    }
     setIsDrawingPath(true);
-    setCurrentPathPoints([]);
     setDraggingElement(null);
+    setSelectedPathPoints([]); // Clear selection when starting to draw
   };
 
   const handleCancelDrawingPath = () => {
@@ -276,8 +290,21 @@ export const FarmView = () => {
   };
 
   const handleStartDrawingPipeline = () => {
+    // If a pipeline point is selected, start from that point
+    if (selectedPipelinePoints.length > 0) {
+      const selection = selectedPipelinePoints[0];
+      const pipeline = farm?.pipelines.find(p => p.id === selection.pipelineId);
+      if (pipeline && pipeline.points) {
+        // Get the selected point (use the first selected index)
+        const selectedIndex = selection.indices[0];
+        const selectedPoint = pipeline.points[selectedIndex];
+        setCurrentPipelinePoints([selectedPoint]);
+      }
+    } else {
+      setCurrentPipelinePoints([]);
+    }
     setIsDrawingPipeline(true);
-    setCurrentPipelinePoints([]);
+    setSelectedPipelinePoints([]); // Clear selection when starting to draw
   };
 
   const handleCancelDrawingPipeline = () => {
@@ -501,6 +528,8 @@ export const FarmView = () => {
             pipelineType={pipelineType}
             selectedPathPoints={selectedPathPoints}
             onSelectedPathPointsChange={setSelectedPathPoints}
+            selectedPipelinePoints={selectedPipelinePoints}
+            onSelectedPipelinePointsChange={setSelectedPipelinePoints}
             onBuildingClick={setSelectedBuildingId}
           />
         </motion.div>
