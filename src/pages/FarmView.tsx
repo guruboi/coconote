@@ -30,6 +30,13 @@ export const FarmView = () => {
     spacingRows: 10,
     spacingColumns: 10,
   });
+  const [showAddLivestock, setShowAddLivestock] = useState(false);
+  const [livestockForm, setLivestockForm] = useState({
+    type: 'cow' as 'cow' | 'goat' | 'sheep' | 'chicken' | 'other',
+    tag: '',
+    age: 0,
+    health: 'good' as 'excellent' | 'good' | 'fair' | 'poor',
+  });
 
   useEffect(() => {
     if (!farm) {
@@ -162,6 +169,36 @@ export const FarmView = () => {
         columns: 1,
         spacingRows: 10,
         spacingColumns: 10,
+      });
+    }
+  };
+
+  const handleAddLivestock = () => {
+    if (farm && livestockForm.tag.trim()) {
+      const newLivestock = {
+        id: Date.now().toString(),
+        type: livestockForm.type,
+        tag: livestockForm.tag.trim(),
+        age: livestockForm.age,
+        health: livestockForm.health,
+      };
+      updateFarm(farm.id, {
+        livestock: [...farm.livestock, newLivestock],
+      });
+      setShowAddLivestock(false);
+      setLivestockForm({
+        type: 'cow',
+        tag: '',
+        age: 0,
+        health: 'good',
+      });
+    }
+  };
+
+  const handleDeleteLivestock = (livestockId: string) => {
+    if (farm) {
+      updateFarm(farm.id, {
+        livestock: farm.livestock.filter(l => l.id !== livestockId),
       });
     }
   };
@@ -828,7 +865,220 @@ export const FarmView = () => {
               </div>
             </motion.div>
           )}
+
+          {/* Livestock Mode Panel */}
+          {viewState.mode === 'livestock' && (
+            <motion.div
+              initial={{ x: 400 }}
+              animate={{ x: 0 }}
+              exit={{ x: 400 }}
+              transition={{ type: 'spring', damping: 20 }}
+              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
+            >
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                  🐄 Livestock Management
+                </h2>
+
+                {/* Add Livestock Button */}
+                <button
+                  onClick={() => setShowAddLivestock(true)}
+                  className="w-full mb-6 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                >
+                  + Add Livestock
+                </button>
+
+                {/* Livestock List */}
+                {farm.livestock.length > 0 ? (
+                  <div className="space-y-4">
+                    {farm.livestock.map((animal) => (
+                      <div
+                        key={animal.id}
+                        className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">
+                              {animal.type === 'cow' ? '🐄' :
+                               animal.type === 'goat' ? '🐐' :
+                               animal.type === 'sheep' ? '🐑' :
+                               animal.type === 'chicken' ? '🐔' : '🐾'}
+                            </span>
+                            <div>
+                              <div className="font-semibold text-gray-800 dark:text-gray-100">
+                                Tag: {animal.tag}
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400 capitalize">
+                                {animal.type}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteLivestock(animal.id)}
+                            className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            title="Delete livestock"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-gray-600 dark:text-gray-400">Age:</span>{' '}
+                            <span className="font-medium text-gray-800 dark:text-gray-100">
+                              {animal.age || 0} years
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600 dark:text-gray-400">Health:</span>{' '}
+                            <span className={`font-medium ${
+                              animal.health === 'excellent' ? 'text-green-600' :
+                              animal.health === 'good' ? 'text-blue-600' :
+                              animal.health === 'fair' ? 'text-yellow-600' : 'text-red-600'
+                            }`}>
+                              {animal.health}
+                            </span>
+                          </div>
+                        </div>
+                        {animal.notes && animal.notes.length > 0 && (
+                          <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            <strong>Notes:</strong> {animal.notes[animal.notes.length - 1]}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-5xl mb-3">🐄</div>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      No livestock added yet
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                      Click the button above to add your first animal
+                    </p>
+                  </div>
+                )}
+
+                {/* Livestock Summary */}
+                {farm.livestock.length > 0 && (
+                  <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                      Summary
+                    </h3>
+                    <div className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+                      <div>Total livestock: <strong>{farm.livestock.length}</strong></div>
+                      <div>Cows: <strong>{farm.livestock.filter(l => l.type === 'cow').length}</strong></div>
+                      <div>Goats: <strong>{farm.livestock.filter(l => l.type === 'goat').length}</strong></div>
+                      <div>Sheep: <strong>{farm.livestock.filter(l => l.type === 'sheep').length}</strong></div>
+                      <div>Chickens: <strong>{farm.livestock.filter(l => l.type === 'chicken').length}</strong></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
+
+        {/* Add Livestock Modal */}
+        {showAddLivestock && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+                🐄 Add Livestock
+              </h2>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Animal Type
+                  </label>
+                  <select
+                    value={livestockForm.type}
+                    onChange={(e) => setLivestockForm({ ...livestockForm, type: e.target.value as any })}
+                    className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                  >
+                    <option value="cow">🐄 Cow</option>
+                    <option value="goat">🐐 Goat</option>
+                    <option value="sheep">🐑 Sheep</option>
+                    <option value="chicken">🐔 Chicken</option>
+                    <option value="other">🐾 Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Tag/ID Number
+                  </label>
+                  <input
+                    type="text"
+                    value={livestockForm.tag}
+                    onChange={(e) => setLivestockForm({ ...livestockForm, tag: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    placeholder="e.g., COW001"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Age (years)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={livestockForm.age}
+                      onChange={(e) => setLivestockForm({ ...livestockForm, age: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Health Status
+                    </label>
+                    <select
+                      value={livestockForm.health}
+                      onChange={(e) => setLivestockForm({ ...livestockForm, health: e.target.value as any })}
+                      className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                    >
+                      <option value="excellent">Excellent</option>
+                      <option value="good">Good</option>
+                      <option value="fair">Fair</option>
+                      <option value="poor">Poor</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowAddLivestock(false);
+                    setLivestockForm({
+                      type: 'cow',
+                      tag: '',
+                      age: 0,
+                      health: 'good',
+                    });
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddLivestock}
+                  disabled={!livestockForm.tag.trim()}
+                  className={`flex-1 px-4 py-3 rounded-lg transition-colors font-semibold ${
+                    livestockForm.tag.trim()
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                  }`}
+                >
+                  Add Animal
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </div>
   );
