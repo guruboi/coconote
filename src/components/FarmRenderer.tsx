@@ -10,6 +10,9 @@ interface FarmRendererProps {
   currentLayer?: number;
   isEditMode?: boolean;
   draggingElement?: any;
+  isDrawingPath?: boolean;
+  currentPathPoints?: Point[];
+  onAddPathPoint?: (point: Point) => void;
 }
 
 interface DragState {
@@ -29,7 +32,10 @@ export const FarmRenderer = ({
   showGrid = false,
   currentLayer = 1,
   isEditMode = false,
-  draggingElement
+  draggingElement,
+  isDrawingPath = false,
+  currentPathPoints = [],
+  onAddPathPoint
 }: FarmRendererProps) => {
   const { updateFarm } = useFarmStore();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -526,6 +532,104 @@ export const FarmRenderer = ({
     });
   };
 
+  // Handle SVG click for path drawing
+  const handleSvgClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!isDrawingPath || !onAddPathPoint) return;
+
+    const svgPos = getSvgMousePosition(e);
+    const farmPos = inverseTransformPoint(svgPos.x, svgPos.y);
+    onAddPathPoint(farmPos);
+  };
+
+  // Render paths
+  const renderPaths = () => {
+    const paths = farm.otherElements.filter(el => el.type === 'path' && el.points);
+
+    return paths.map((path) => {
+      if (!path.points || path.points.length < 2) return null;
+
+      const pathString = path.points.map((point, index) => {
+        const transformed = transformPoint(point.x, point.y);
+        return `${index === 0 ? 'M' : 'L'} ${transformed.x} ${transformed.y}`;
+      }).join(' ');
+
+      return (
+        <g key={path.id}>
+          {/* Path line */}
+          <path
+            d={pathString}
+            fill="none"
+            stroke="#8b5a3c"
+            strokeWidth={8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {/* Path outline for better visibility */}
+          <path
+            d={pathString}
+            fill="none"
+            stroke="#d4a574"
+            strokeWidth={12}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.3}
+          />
+        </g>
+      );
+    });
+  };
+
+  // Render current path being drawn
+  const renderCurrentPath = () => {
+    if (!isDrawingPath || currentPathPoints.length === 0) return null;
+
+    const pathString = currentPathPoints.map((point, index) => {
+      const transformed = transformPoint(point.x, point.y);
+      return `${index === 0 ? 'M' : 'L'} ${transformed.x} ${transformed.y}`;
+    }).join(' ');
+
+    return (
+      <g>
+        {/* Current path line */}
+        <path
+          d={pathString}
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth={8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="5,5"
+        />
+        {/* Points */}
+        {currentPathPoints.map((point, index) => {
+          const transformed = transformPoint(point.x, point.y);
+          return (
+            <g key={index}>
+              <circle
+                cx={transformed.x}
+                cy={transformed.y}
+                r={6}
+                fill="#3b82f6"
+                stroke="white"
+                strokeWidth={2}
+              />
+              <text
+                x={transformed.x}
+                y={transformed.y - 12}
+                textAnchor="middle"
+                fontSize="10"
+                fill="#3b82f6"
+                fontWeight="bold"
+              >
+                {index + 1}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
   return (
     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 rounded-lg overflow-hidden">
       <svg
@@ -534,9 +638,10 @@ export const FarmRenderer = ({
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         className="max-w-full h-auto"
-        style={{ cursor: dragState.isDragging ? 'grabbing' : 'default' }}
+        style={{ cursor: isDrawingPath ? 'crosshair' : dragState.isDragging ? 'grabbing' : 'default' }}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onClick={handleSvgClick}
       >
         {/* 1 sq ft Grid - clipped to boundary */}
         {showGrid && bounds.gridCellSize && boundaryPath && (
@@ -641,9 +746,11 @@ export const FarmRenderer = ({
         })}
 
         {/* Render all farm elements */}
+        {renderPaths()}
         {renderPlants()}
         {renderBuildings()}
         {renderOtherElements()}
+        {renderCurrentPath()}
 
         {/* Farm info overlay */}
         <g>

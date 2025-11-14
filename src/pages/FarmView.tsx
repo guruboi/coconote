@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FarmRenderer } from '@/components/FarmRenderer';
 import { ElementPalette } from '@/components/ElementPalette';
+import type { Point } from '@/types/farm.types';
 
 export const FarmView = () => {
   const navigate = useNavigate();
@@ -17,6 +18,8 @@ export const FarmView = () => {
   const [showEditFarmInfo, setShowEditFarmInfo] = useState(false);
   const [editFarmName, setEditFarmName] = useState('');
   const [editFarmDescription, setEditFarmDescription] = useState('');
+  const [isDrawingPath, setIsDrawingPath] = useState(false);
+  const [currentPathPoints, setCurrentPathPoints] = useState<Point[]>([]);
 
   useEffect(() => {
     if (!farm) {
@@ -87,6 +90,40 @@ export const FarmView = () => {
       });
       setShowEditFarmInfo(false);
     }
+  };
+
+  const handleStartDrawingPath = () => {
+    setIsDrawingPath(true);
+    setCurrentPathPoints([]);
+    setDraggingElement(null);
+  };
+
+  const handleCancelDrawingPath = () => {
+    setIsDrawingPath(false);
+    setCurrentPathPoints([]);
+  };
+
+  const handleAddPathPoint = (point: Point) => {
+    if (isDrawingPath) {
+      setCurrentPathPoints(prev => [...prev, point]);
+    }
+  };
+
+  const handleFinishDrawingPath = () => {
+    if (farm && currentPathPoints.length >= 2) {
+      const newPath = {
+        id: Date.now().toString(),
+        type: 'path' as const,
+        name: `Path ${farm.otherElements.filter(e => e.type === 'path').length + 1}`,
+        position: currentPathPoints[0], // First point as reference position
+        points: currentPathPoints,
+      };
+      updateFarm(farm.id, {
+        otherElements: [...farm.otherElements, newPath],
+      });
+    }
+    setIsDrawingPath(false);
+    setCurrentPathPoints([]);
   };
 
   return (
@@ -177,6 +214,40 @@ export const FarmView = () => {
           >
             {showStats ? '✓' : '○'} Stats
           </button>
+
+          {/* Path Drawing Controls - Only in Edit Mode */}
+          {viewState.mode === 'edit' && (
+            <>
+              {!isDrawingPath ? (
+                <button
+                  onClick={handleStartDrawingPath}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  🛤️ Draw Path
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleFinishDrawingPath}
+                    disabled={currentPathPoints.length < 2}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      currentPathPoints.length >= 2
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    }`}
+                  >
+                    ✓ Finish Path ({currentPathPoints.length} points)
+                  </button>
+                  <button
+                    onClick={handleCancelDrawingPath}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                  >
+                    ✕ Cancel
+                  </button>
+                </>
+              )}
+            </>
+          )}
         </div>
 
         {/* Farm canvas area */}
@@ -193,6 +264,9 @@ export const FarmView = () => {
             currentLayer={viewState.selectedLayer}
             isEditMode={viewState.mode === 'edit'}
             draggingElement={draggingElement}
+            isDrawingPath={isDrawingPath}
+            currentPathPoints={currentPathPoints}
+            onAddPathPoint={handleAddPathPoint}
           />
         </motion.div>
 
@@ -468,14 +542,52 @@ export const FarmView = () => {
                   </div>
                 )}
 
-                {/* Other Elements */}
-                {farm.otherElements.length > 0 && (
+                {/* Paths */}
+                {farm.otherElements.filter(e => e.type === 'path').length > 0 && (
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
-                      Other Elements ({farm.otherElements.length})
+                      Paths ({farm.otherElements.filter(e => e.type === 'path').length})
                     </h3>
                     <div className="space-y-2">
-                      {farm.otherElements.map((element) => (
+                      {farm.otherElements.filter(e => e.type === 'path').map((path) => (
+                        <div
+                          key={path.id}
+                          className="flex items-center justify-between p-3 bg-frost dark:bg-bg-dark rounded-lg border border-gray-200 dark:border-gray-700"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">🛤️</span>
+                            <div>
+                              <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                {path.name}
+                              </div>
+                              {path.points && (
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {path.points.length} points
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteElement(path.id)}
+                            className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            title="Delete path"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Other Elements */}
+                {farm.otherElements.filter(e => e.type !== 'path').length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                      Other Elements ({farm.otherElements.filter(e => e.type !== 'path').length})
+                    </h3>
+                    <div className="space-y-2">
+                      {farm.otherElements.filter(e => e.type !== 'path').map((element) => (
                         <div
                           key={element.id}
                           className="flex items-center justify-between p-3 bg-frost dark:bg-bg-dark rounded-lg border border-gray-200 dark:border-gray-700"
@@ -512,11 +624,14 @@ export const FarmView = () => {
 
                 <div className="mt-6 p-4 bg-farm-green-50 dark:bg-farm-green-900/20 border border-farm-green-500 rounded-lg">
                   <p className="text-sm text-farm-green-800 dark:text-farm-green-300 font-semibold mb-2">
-                    🎯 Position Your Elements
+                    🎯 Edit Mode Guide
                   </p>
-                  <p className="text-sm text-farm-green-700 dark:text-farm-green-400">
-                    Drag and drop buildings, plants, and other elements directly on the farm to position them. Click elements to select them, then delete if needed.
-                  </p>
+                  <ul className="text-sm text-farm-green-700 dark:text-farm-green-400 space-y-1">
+                    <li>• Drag and drop elements from the palette to your farm</li>
+                    <li>• Click and drag existing elements to reposition them</li>
+                    <li>• Click "Draw Path" to create paths by clicking points on the farm</li>
+                    <li>• Delete elements using the 🗑️ button next to each item</li>
+                  </ul>
                 </div>
               </div>
             </motion.div>
