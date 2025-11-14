@@ -175,6 +175,47 @@ export const FarmView = () => {
 
   const handleAddPlantConfig = () => {
     if (farm && plantForm.name.trim() && plantForm.plantType.trim()) {
+      // Calculate area needed for this plant configuration
+      const totalPlants = plantForm.rows * plantForm.columns;
+      const configWidth = plantForm.columns * plantForm.spacingColumns; // in feet
+      const configHeight = plantForm.rows * plantForm.spacingRows; // in feet
+      const configAreaSqFt = configWidth * configHeight;
+      const configAreaCents = configAreaSqFt / 435.6;
+
+      // Calculate total farm area in square feet
+      const farmAreaSqFt = farm.boundary.area * 43560; // acres to sq ft
+      const farmAreaCents = farm.boundary.area * 100; // acres to cents
+
+      // Calculate already used area
+      let usedAreaSqFt = 0;
+
+      // Add building areas
+      farm.buildings.forEach(building => {
+        const buildingSqFt = building.size.width * building.size.height * 435.6;
+        usedAreaSqFt += buildingSqFt;
+      });
+
+      // Add existing plant configuration areas
+      farm.plantConfigurations.forEach(config => {
+        const configSqFt = config.rows * config.spacingBetweenRows * config.columns * config.spacingBetweenColumns;
+        usedAreaSqFt += configSqFt;
+      });
+
+      const usedAreaCents = usedAreaSqFt / 435.6;
+      const availableAreaSqFt = farmAreaSqFt - usedAreaSqFt;
+      const availableAreaCents = farmAreaCents - usedAreaCents;
+
+      // Check if configuration fits
+      if (configAreaSqFt > availableAreaSqFt) {
+        alert(
+          `Cannot add plant configuration!\n\n` +
+          `Configuration needs: ${totalPlants} plants in ${configAreaSqFt.toFixed(0)} sq ft (${configAreaCents.toFixed(2)} cents)\n` +
+          `Available space: ${availableAreaSqFt.toFixed(0)} sq ft (${availableAreaCents.toFixed(2)} cents)\n\n` +
+          `Please reduce the number of plants or adjust spacing.`
+        );
+        return;
+      }
+
       const newConfig = {
         id: Date.now().toString(),
         name: plantForm.name.trim(),
