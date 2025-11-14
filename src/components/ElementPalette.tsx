@@ -12,7 +12,6 @@ interface ElementDef {
 
 const COMMON_ELEMENTS: ElementDef[] = [
   { id: 'house', type: 'house', name: 'House', icon: '🏠', defaultSize: { width: 3, height: 3 }, category: 'building' }, // ~1300 sq ft
-  { id: 'cow', type: 'livestock', name: 'Cow', icon: '🐄', defaultSize: { width: 0.1, height: 0.1 }, category: 'element' }, // ~40 sq ft per cow
   { id: 'well', type: 'well', name: 'Well', icon: '💧', defaultSize: { width: 0.03, height: 0.03 }, category: 'element' }, // ~15 sq ft
   { id: 'borewell', type: 'borewell', name: 'Borewell', icon: '🕳️', defaultSize: { width: 0.02, height: 0.02 }, category: 'element' }, // ~10 sq ft
   { id: 'storage', type: 'storage', name: 'Storage', icon: '📦', defaultSize: { width: 0.7, height: 0.7 }, category: 'building' }, // ~300 sq ft
