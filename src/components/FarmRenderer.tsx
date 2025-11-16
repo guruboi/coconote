@@ -38,6 +38,14 @@ interface DragState {
   originalSize?: { width: number; height: number };
 }
 
+// Track proximity-affected elements
+interface ProximityOffset {
+  elementType: 'building' | 'plantConfig' | 'otherElement';
+  elementId: string;
+  offsetX: number;
+  offsetY: number;
+}
+
 export const FarmRenderer = ({
   farm,
   width = 800,
@@ -71,6 +79,7 @@ export const FarmRenderer = ({
     offsetX: 0,
     offsetY: 0,
   });
+  const [proximityOffsets, setProximityOffsets] = useState<ProximityOffset[]>([]);
 
   // Calculate the bounding box of the farm
   const bounds = useMemo(() => {
@@ -215,6 +224,105 @@ export const FarmRenderer = ({
     }
 
     return false;
+  };
+
+  // Calculate proximity offsets for nearby elements
+  const calculateProximityOffsets = (draggedPos: Point, draggedSize: { width: number; height: number }, draggedId: string | null): ProximityOffset[] => {
+    const offsets: ProximityOffset[] = [];
+    const proximityRadius = 150; // Radius in farm coordinates to trigger repulsion
+    const repulsionStrength = 0.5; // How strongly elements are pushed away (0-1)
+
+    const scale = Math.sqrt(435.6); // Convert cents to coordinate units
+    const draggedCenterX = draggedPos.x + (draggedSize.width * scale) / 2;
+    const draggedCenterY = draggedPos.y + (draggedSize.height * scale) / 2;
+
+    // Check buildings
+    farm.buildings.forEach(building => {
+      if (building.id === draggedId || building.locked) return;
+
+      const buildingCenterX = building.position.x + (building.size.width * scale) / 2;
+      const buildingCenterY = building.position.y + (building.size.height * scale) / 2;
+
+      const distance = Math.sqrt(
+        Math.pow(buildingCenterX - draggedCenterX, 2) +
+        Math.pow(buildingCenterY - draggedCenterY, 2)
+      );
+
+      if (distance < proximityRadius && distance > 0) {
+        // Calculate repulsion direction (away from dragged element)
+        const directionX = (buildingCenterX - draggedCenterX) / distance;
+        const directionY = (buildingCenterY - draggedCenterY) / distance;
+
+        // Repulsion magnitude decreases with distance
+        const magnitude = (1 - distance / proximityRadius) * repulsionStrength * 50;
+
+        offsets.push({
+          elementType: 'building',
+          elementId: building.id,
+          offsetX: directionX * magnitude,
+          offsetY: directionY * magnitude,
+        });
+      }
+    });
+
+    // Check plant configurations
+    farm.plantConfigurations.forEach(config => {
+      if (config.id === draggedId || config.locked) return;
+
+      const startPos = getPositionCoordinates(config.startingCorner as any);
+      const plantWidth = config.columns * config.spacingBetweenColumns;
+      const plantHeight = config.rows * config.spacingBetweenRows;
+
+      const plantCenterX = startPos.x + plantWidth / 2;
+      const plantCenterY = startPos.y + plantHeight / 2;
+
+      const distance = Math.sqrt(
+        Math.pow(plantCenterX - draggedCenterX, 2) +
+        Math.pow(plantCenterY - draggedCenterY, 2)
+      );
+
+      if (distance < proximityRadius && distance > 0) {
+        const directionX = (plantCenterX - draggedCenterX) / distance;
+        const directionY = (plantCenterY - draggedCenterY) / distance;
+        const magnitude = (1 - distance / proximityRadius) * repulsionStrength * 50;
+
+        offsets.push({
+          elementType: 'plantConfig',
+          elementId: config.id,
+          offsetX: directionX * magnitude,
+          offsetY: directionY * magnitude,
+        });
+      }
+    });
+
+    // Check other elements
+    farm.otherElements.forEach(element => {
+      if (element.id === draggedId || element.type === 'path') return;
+
+      const pos = typeof element.position === 'string'
+        ? getPositionCoordinates(element.position)
+        : element.position;
+
+      const distance = Math.sqrt(
+        Math.pow(pos.x - draggedCenterX, 2) +
+        Math.pow(pos.y - draggedCenterY, 2)
+      );
+
+      if (distance < proximityRadius && distance > 0) {
+        const directionX = (pos.x - draggedCenterX) / distance;
+        const directionY = (pos.y - draggedCenterY) / distance;
+        const magnitude = (1 - distance / proximityRadius) * repulsionStrength * 50;
+
+        offsets.push({
+          elementType: 'otherElement',
+          elementId: element.id,
+          offsetX: directionX * magnitude,
+          offsetY: directionY * magnitude,
+        });
+      }
+    });
+
+    return offsets;
   };
 
   // Find nearby non-overlapping position
@@ -372,6 +480,34 @@ export const FarmRenderer = ({
 
     const svgPos = getSvgMousePosition(e);
 
+    // Handle proximity animation during dragging
+    if (dragState.isDragging && dragState.elementType) {
+      const newSvgX = svgPos.x - dragState.offsetX;
+      const newSvgY = svgPos.y - dragState.offsetY;
+      const farmPos = inverseTransformPoint(newSvgX, newSvgY);
+
+      // Get dragged element size
+      let draggedSize = { width: 5, height: 5 }; // Default size
+      if (dragState.elementType === 'building') {
+        const building = farm.buildings.find(b => b.id === dragState.elementId);
+        if (building) draggedSize = building.size;
+      } else if (dragState.elementType === 'plantConfig') {
+        const config = farm.plantConfigurations.find(c => c.id === dragState.elementId);
+        if (config) {
+          draggedSize = {
+            width: config.columns * (config.spacingBetweenColumns / 435.6),
+            height: config.rows * (config.spacingBetweenRows / 435.6)
+          };
+        }
+      } else {
+        draggedSize = { width: 0.1, height: 0.1 };
+      }
+
+      // Calculate and apply proximity offsets
+      const offsets = calculateProximityOffsets(farmPos, draggedSize, dragState.elementId);
+      setProximityOffsets(offsets);
+    }
+
     // Handle resizing
     if (dragState.isResizing && dragState.elementType === 'building' && dragState.resizeCorner && dragState.originalSize) {
       const building = farm.buildings.find(b => b.id === dragState.elementId);
@@ -463,6 +599,9 @@ export const FarmRenderer = ({
   };
 
   const handleMouseUp = (e: MouseEvent) => {
+    // Clear proximity offsets when drag ends
+    setProximityOffsets([]);
+
     if (dragState.isResizing) {
       // Finalize resize
       setDragState({
@@ -563,6 +702,12 @@ export const FarmRenderer = ({
     }
   }, [dragState.isDragging, dragState.isResizing, isEditMode]);
 
+  // Get proximity offset for an element
+  const getProximityOffset = (elementType: 'building' | 'plantConfig' | 'otherElement', elementId: string): { x: number; y: number } => {
+    const offset = proximityOffsets.find(o => o.elementType === elementType && o.elementId === elementId);
+    return offset ? { x: offset.offsetX, y: offset.offsetY } : { x: 0, y: 0 };
+  };
+
   // Convert position string to coordinates
   const getPositionCoordinates = (position: string | Point): Point => {
     // If already a Point object, return it
@@ -604,7 +749,13 @@ export const FarmRenderer = ({
   const renderBuildings = () => {
     return farm.buildings.map((building) => {
       // Building position is a Point object, not a string
-      const transformed = transformPoint(building.position.x, building.position.y);
+      // Apply proximity offset
+      const proximityOffset = getProximityOffset('building', building.id);
+      const adjustedPosition = {
+        x: building.position.x + proximityOffset.x,
+        y: building.position.y + proximityOffset.y
+      };
+      const transformed = transformPoint(adjustedPosition.x, adjustedPosition.y);
       const isDragging = dragState.isDragging && dragState.elementType === 'building' && dragState.elementId === building.id;
 
       const iconMap: Record<string, string> = {
@@ -617,7 +768,10 @@ export const FarmRenderer = ({
       return (
         <g key={building.id}>
           <g
-            style={{ cursor: isEditMode && !building.locked ? 'grab' : building.locked ? 'not-allowed' : 'pointer' }}
+            style={{
+              cursor: isEditMode && !building.locked ? 'grab' : building.locked ? 'not-allowed' : 'pointer',
+              transition: proximityOffset.x !== 0 || proximityOffset.y !== 0 ? 'transform 0.3s ease-out' : 'none'
+            }}
             opacity={isDragging ? 0.7 : building.locked ? 0.6 : 1}
             onMouseDown={(e) => isEditMode && !building.locked && handleMouseDown(e, 'building', building.id, building.position.x, building.position.y)}
             onClick={(e) => {
@@ -712,11 +866,11 @@ export const FarmRenderer = ({
             const buildingWidth = building.size.width * scale;
             const buildingHeight = building.size.height * scale;
 
-            // Calculate corner positions in farm coordinates
-            const topLeft = transformPoint(building.position.x, building.position.y);
-            const topRight = transformPoint(building.position.x + buildingWidth, building.position.y);
-            const bottomLeft = transformPoint(building.position.x, building.position.y + buildingHeight);
-            const bottomRight = transformPoint(building.position.x + buildingWidth, building.position.y + buildingHeight);
+            // Calculate corner positions in farm coordinates (using adjusted position)
+            const topLeft = transformPoint(adjustedPosition.x, adjustedPosition.y);
+            const topRight = transformPoint(adjustedPosition.x + buildingWidth, adjustedPosition.y);
+            const bottomLeft = transformPoint(adjustedPosition.x, adjustedPosition.y + buildingHeight);
+            const bottomRight = transformPoint(adjustedPosition.x + buildingWidth, adjustedPosition.y + buildingHeight);
 
             return (
               <>
@@ -788,7 +942,13 @@ export const FarmRenderer = ({
       }
 
       const plants = [];
-      const startPos = getPositionCoordinates(config.startingCorner as any);
+      // Apply proximity offset
+      const proximityOffset = getProximityOffset('plantConfig', config.id);
+      const baseStartPos = getPositionCoordinates(config.startingCorner as any);
+      const startPos = {
+        x: baseStartPos.x + proximityOffset.x,
+        y: baseStartPos.y + proximityOffset.y
+      };
       const isDragging = dragState.isDragging && dragState.elementType === 'plantConfig' && dragState.elementId === config.id;
 
       // Render ALL plants - no skipping
@@ -894,9 +1054,15 @@ export const FarmRenderer = ({
   // Render other elements
   const renderOtherElements = () => {
     return farm.otherElements.map((element) => {
-      const pos = typeof element.position === 'string'
+      const basePos = typeof element.position === 'string'
         ? getPositionCoordinates(element.position)
         : element.position;
+      // Apply proximity offset
+      const proximityOffset = getProximityOffset('otherElement', element.id);
+      const pos = {
+        x: basePos.x + proximityOffset.x,
+        y: basePos.y + proximityOffset.y
+      };
       const transformed = transformPoint(pos.x, pos.y);
       const isDragging = dragState.isDragging && dragState.elementType === 'otherElement' && dragState.elementId === element.id;
 
