@@ -19,6 +19,7 @@ export const News = () => {
   const [selectedCategory, setSelectedCategory] = useState<NewsCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedArticle, setExpandedArticle] = useState<string | null>(null);
+  const [showAIWeatherInsights, setShowAIWeatherInsights] = useState(true);
 
   // Filter articles
   const displayedArticles = useMemo(() => {
@@ -63,6 +64,126 @@ export const News = () => {
         return 'bg-blue-100 border-blue-500 text-blue-900 dark:bg-blue-900/20 dark:text-blue-300';
     }
   };
+
+  // Generate AI-powered weather insights
+  const aiWeatherInsights = useMemo(() => {
+    if (weatherForecast.length === 0) return [];
+
+    const insights = [];
+    const totalRainfall = weatherForecast.reduce((sum, day) => sum + day.rainfall, 0);
+    const rainyDays = weatherForecast.filter(day => day.rainfall > 0).length;
+    const avgTemp = weatherForecast.reduce((sum, day) => sum + (day.temperature.max + day.temperature.min) / 2, 0) / weatherForecast.length;
+    const avgHumidity = weatherForecast.reduce((sum, day) => sum + day.humidity, 0) / weatherForecast.length;
+    const maxTemp = Math.max(...weatherForecast.map(day => day.temperature.max));
+    const minTemp = Math.min(...weatherForecast.map(day => day.temperature.min));
+
+    // Rainfall analysis
+    if (totalRainfall > 50) {
+      insights.push({
+        type: 'warning' as const,
+        icon: '🌧️',
+        title: 'Heavy Rainfall Expected',
+        description: `${totalRainfall.toFixed(0)}mm total rainfall forecasted over ${rainyDays} days. Waterlogging risk in low-lying areas.`,
+        action: 'Ensure proper drainage. Delay irrigation. Protect vulnerable crops.',
+      });
+    } else if (totalRainfall === 0 && avgTemp > 30) {
+      insights.push({
+        type: 'warning' as const,
+        icon: '☀️',
+        title: 'Dry Spell Ahead',
+        description: `No rainfall expected for the next 7 days with temperatures averaging ${avgTemp.toFixed(1)}°C.`,
+        action: 'Plan irrigation schedule. Mulch to retain soil moisture. Monitor plant stress.',
+      });
+    } else if (totalRainfall > 0 && totalRainfall < 20) {
+      insights.push({
+        type: 'positive' as const,
+        icon: '⛅',
+        title: 'Moderate Rainfall',
+        description: `Light to moderate rainfall (${totalRainfall.toFixed(0)}mm) expected. Good conditions for most crops.`,
+        action: 'Ideal time for sowing. Reduce irrigation accordingly.',
+      });
+    }
+
+    // Temperature insights
+    if (maxTemp > 35) {
+      insights.push({
+        type: 'warning' as const,
+        icon: '🌡️',
+        title: 'Heat Stress Alert',
+        description: `Temperatures reaching ${maxTemp}°C. High risk of crop stress and water stress.`,
+        action: 'Increase irrigation frequency. Provide shade if possible. Monitor for heat damage.',
+      });
+    } else if (minTemp < 15) {
+      insights.push({
+        type: 'neutral' as const,
+        icon: '❄️',
+        title: 'Cool Temperatures',
+        description: `Minimum temperatures dropping to ${minTemp}°C. Some crops may experience slow growth.`,
+        action: 'Protect sensitive crops. Delay planting of warm-season crops.',
+      });
+    } else {
+      insights.push({
+        type: 'positive' as const,
+        icon: '🌡️',
+        title: 'Optimal Temperature Range',
+        description: `Temperatures between ${minTemp}°C and ${maxTemp}°C. Ideal growing conditions for most crops.`,
+        action: 'Excellent conditions for planting and cultivation.',
+      });
+    }
+
+    // Humidity and disease risk
+    if (avgHumidity > 80 && avgTemp > 25) {
+      insights.push({
+        type: 'warning' as const,
+        icon: '🦠',
+        title: 'High Disease Risk',
+        description: `High humidity (${avgHumidity.toFixed(0)}%) combined with warm temperatures creates favorable conditions for fungal diseases.`,
+        action: 'Monitor for leaf spots, blights, and mildew. Apply preventive fungicides if needed.',
+      });
+    } else if (avgHumidity < 40) {
+      insights.push({
+        type: 'neutral' as const,
+        icon: '💨',
+        title: 'Low Humidity',
+        description: `Humidity averaging ${avgHumidity.toFixed(0)}%. Dry conditions may increase pest activity.`,
+        action: 'Watch for spider mites and thrips. Ensure adequate watering.',
+      });
+    }
+
+    // Best farming activities
+    const goodDaysForSpray = weatherForecast.filter(
+      day => day.rainfall === 0 && day.windSpeed < 15 && day.condition !== 'rainy'
+    ).length;
+
+    if (goodDaysForSpray >= 3) {
+      insights.push({
+        type: 'positive' as const,
+        icon: '🚜',
+        title: 'Ideal for Spray Operations',
+        description: `${goodDaysForSpray} days with calm, dry conditions perfect for pesticide/fertilizer application.`,
+        action: 'Schedule spray operations during these windows for maximum effectiveness.',
+      });
+    }
+
+    // Climate change awareness
+    const weatherPatternText = totalRainfall > 100
+      ? 'heavy rainfall patterns'
+      : totalRainfall === 0 && maxTemp > 35
+      ? 'extreme heat and drought'
+      : avgHumidity > 85
+      ? 'high humidity levels'
+      : 'variable weather patterns';
+
+    insights.push({
+      type: 'neutral' as const,
+      icon: '🌍',
+      title: 'Climate Adaptation Tips',
+      description: `Current ${weatherPatternText} reflect changing climate patterns. Building resilience is key.`,
+      action: 'Consider drought-resistant varieties, rainwater harvesting, and diversified cropping.',
+    });
+
+    return insights;
+  }, [weatherForecast]);
 
   return (
     <div className="min-h-screen bg-frost dark:bg-bg-dark p-6">
@@ -109,6 +230,81 @@ export const News = () => {
               </motion.div>
             ))}
           </div>
+        )}
+
+        {/* AI Weather Insights */}
+        {showAIWeatherInsights && aiWeatherInsights.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 bg-gradient-to-r from-cyan-50 to-teal-50 dark:from-cyan-900/20 dark:to-teal-900/20 border border-cyan-200 dark:border-cyan-800 rounded-xl p-6 shadow-lg"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="text-3xl">🤖</div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                    AI Weather Intelligence
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Smart farming recommendations based on 7-day forecast
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAIWeatherInsights(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Hide insights"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {aiWeatherInsights.map((insight, index) => {
+                const typeColors = {
+                  positive: 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700',
+                  warning: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700',
+                  neutral: 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600',
+                };
+
+                return (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                    className={`p-4 rounded-lg border ${typeColors[insight.type]}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">{insight.icon}</span>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-1">
+                          {insight.title}
+                        </h3>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                          {insight.description}
+                        </p>
+                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400 italic">
+                          💡 {insight.action}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {!showAIWeatherInsights && (
+          <button
+            onClick={() => setShowAIWeatherInsights(true)}
+            className="mb-6 flex items-center gap-2 px-4 py-2 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-lg hover:bg-cyan-200 dark:hover:bg-cyan-900/50 transition-colors font-medium"
+          >
+            <span>🤖</span>
+            <span>Show AI Weather Intelligence</span>
+          </button>
         )}
 
         {/* Weather Forecast */}
