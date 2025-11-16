@@ -33,6 +33,9 @@ interface DragState {
   startY: number;
   offsetX: number;
   offsetY: number;
+  isResizing?: boolean;
+  resizeCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  originalSize?: { width: number; height: number };
 }
 
 export const FarmRenderer = ({
