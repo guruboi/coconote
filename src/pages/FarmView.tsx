@@ -42,6 +42,13 @@ export const FarmView = () => {
   const [selectedPathPoints, setSelectedPathPoints] = useState<{ pathId: string; indices: number[] }[]>([]);
   const [selectedPipelinePoints, setSelectedPipelinePoints] = useState<{ pipelineId: string; indices: number[] }[]>([]);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [farmNoteForm, setFarmNoteForm] = useState({
+    type: 'general' as 'fertilization' | 'irrigation' | 'weeding' | 'harvesting' | 'general',
+    description: '',
+    cost: 0,
+    manpower: 0,
+    materialsUsed: '',
+  });
 
   useEffect(() => {
     if (!farm) {
@@ -1183,9 +1190,121 @@ export const FarmView = () => {
                   Track daily activities, observations, and important farm events.
                 </p>
 
+                {/* Add Note Form */}
+                <div className="mb-6 p-4 bg-farm-green-50 dark:bg-farm-green-900/20 rounded-lg border border-farm-green-500">
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+                    Add New Note
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Activity Type
+                      </label>
+                      <select
+                        value={farmNoteForm.type}
+                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500 text-sm"
+                        onChange={(e) => setFarmNoteForm({ ...farmNoteForm, type: e.target.value as any })}
+                      >
+                        <option value="general">📋 General</option>
+                        <option value="fertilization">🌿 Fertilization</option>
+                        <option value="irrigation">💧 Irrigation</option>
+                        <option value="weeding">🌱 Weeding</option>
+                        <option value="harvesting">🌾 Harvesting</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={farmNoteForm.description}
+                        onChange={(e) => setFarmNoteForm({ ...farmNoteForm, description: e.target.value })}
+                        placeholder="What did you do? What did you observe?"
+                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500 text-sm"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Cost (₹)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={farmNoteForm.cost || ''}
+                          onChange={(e) => setFarmNoteForm({ ...farmNoteForm, cost: parseInt(e.target.value) || 0 })}
+                          placeholder="0"
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Manpower
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={farmNoteForm.manpower || ''}
+                          onChange={(e) => setFarmNoteForm({ ...farmNoteForm, manpower: parseInt(e.target.value) || 0 })}
+                          placeholder="0"
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Materials Used (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={farmNoteForm.materialsUsed}
+                        onChange={(e) => setFarmNoteForm({ ...farmNoteForm, materialsUsed: e.target.value })}
+                        placeholder="e.g., Organic fertilizer, pesticide"
+                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500 text-sm"
+                      />
+                    </div>
+                    <button
+                      disabled={!farmNoteForm.description.trim()}
+                      className="w-full px-4 py-2 bg-farm-green-600 hover:bg-farm-green-700 text-white rounded-lg font-semibold transition-colors text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      onClick={() => {
+                        if (!farmNoteForm.description.trim()) return;
+
+                        const newNote = {
+                          id: Date.now().toString(),
+                          date: new Date(),
+                          type: farmNoteForm.type,
+                          description: farmNoteForm.description.trim(),
+                          cost: farmNoteForm.cost || undefined,
+                          manpower: farmNoteForm.manpower || undefined,
+                          materialsUsed: farmNoteForm.materialsUsed.trim() || undefined,
+                        };
+
+                        updateFarm(farm.id, {
+                          farmNotes: [...farm.farmNotes, newNote],
+                        });
+
+                        // Reset form
+                        setFarmNoteForm({
+                          type: 'general',
+                          description: '',
+                          cost: 0,
+                          manpower: 0,
+                          materialsUsed: '',
+                        });
+                      }}
+                    >
+                      ✓ Add Note
+                    </button>
+                  </div>
+                </div>
+
                 {/* Notes List */}
                 {farm.farmNotes.length > 0 ? (
                   <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                      Recent Activity
+                    </h3>
                     {farm.farmNotes.slice().reverse().map((note) => (
                       <div
                         key={note.id}
@@ -1193,15 +1312,37 @@ export const FarmView = () => {
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
-                            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                              {new Date(note.date).toLocaleDateString()} - {note.type}
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 capitalize">
+                                {note.type === 'fertilization' ? '🌿' :
+                                 note.type === 'irrigation' ? '💧' :
+                                 note.type === 'weeding' ? '🌱' :
+                                 note.type === 'harvesting' ? '🌾' : '📋'} {note.type}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {new Date(note.date).toLocaleDateString()}
+                              </span>
                             </div>
-                            <p className="text-gray-800 dark:text-gray-100">{note.description}</p>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{note.description}</p>
                           </div>
                         </div>
-                        {note.cost && (
-                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                            Cost: ₹{note.cost}
+                        <div className="flex gap-4 mt-3 text-xs text-gray-600 dark:text-gray-400">
+                          {note.cost && (
+                            <div className="flex items-center gap-1">
+                              <span>💰</span>
+                              <span>₹{note.cost}</span>
+                            </div>
+                          )}
+                          {note.manpower && (
+                            <div className="flex items-center gap-1">
+                              <span>👷</span>
+                              <span>{note.manpower} workers</span>
+                            </div>
+                          )}
+                        </div>
+                        {note.materialsUsed && (
+                          <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                            <strong>Materials:</strong> {note.materialsUsed}
                           </div>
                         )}
                       </div>
@@ -1214,7 +1355,7 @@ export const FarmView = () => {
                       No notes yet
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Start tracking your farm activities
+                      Start tracking your farm activities using the form above
                     </p>
                   </div>
                 )}
@@ -1224,9 +1365,9 @@ export const FarmView = () => {
                     💡 Note Taking Tips
                   </p>
                   <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
-                    <li>• Record daily observations</li>
-                    <li>• Track expenses and materials used</li>
-                    <li>• Note weather conditions</li>
+                    <li>• Record daily observations and activities</li>
+                    <li>• Track expenses and materials for budgeting</li>
+                    <li>• Note manpower to plan future work</li>
                     <li>• Document pest or disease issues</li>
                   </ul>
                 </div>
