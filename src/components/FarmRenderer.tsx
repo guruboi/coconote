@@ -21,6 +21,7 @@ interface FarmRendererProps {
   selectedPipelinePoints?: { pipelineId: string; indices: number[] }[];
   onSelectedPipelinePointsChange?: (selected: { pipelineId: string; indices: number[] }[]) => void;
   onBuildingClick?: (buildingId: string) => void;
+  onPlantClick?: (configId: string, row: number, col: number) => void;
 }
 
 interface DragState {
@@ -52,7 +53,8 @@ export const FarmRenderer = ({
   onSelectedPathPointsChange,
   selectedPipelinePoints = [],
   onSelectedPipelinePointsChange,
-  onBuildingClick
+  onBuildingClick,
+  onPlantClick
 }: FarmRendererProps) => {
   const { updateFarm } = useFarmStore();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -580,7 +582,16 @@ export const FarmRenderer = ({
                       config.category === 'plant' ? '🌿' : '🌾';
 
           plants.push(
-            <g key={`${config.id}-${row}-${col}`}>
+            <g
+              key={`${config.id}-${row}-${col}`}
+              style={{ cursor: !isEditMode && onPlantClick ? 'pointer' : 'default' }}
+              onClick={(e) => {
+                if (!isEditMode && onPlantClick) {
+                  e.stopPropagation();
+                  onPlantClick(config.id, row, col);
+                }
+              }}
+            >
               <circle
                 cx={transformed.x}
                 cy={transformed.y}
@@ -588,6 +599,7 @@ export const FarmRenderer = ({
                 fill="rgba(34, 197, 94, 0.2)"
                 stroke="#22c55e"
                 strokeWidth={isDragging ? 2 : 1}
+                className={!isEditMode && onPlantClick ? 'hover:fill-[rgba(34,197,94,0.4)] transition-colors' : ''}
               />
               <text
                 x={transformed.x}

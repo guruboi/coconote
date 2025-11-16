@@ -42,6 +42,8 @@ export const FarmView = () => {
   const [selectedPathPoints, setSelectedPathPoints] = useState<{ pathId: string; indices: number[] }[]>([]);
   const [selectedPipelinePoints, setSelectedPipelinePoints] = useState<{ pipelineId: string; indices: number[] }[]>([]);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
+  const [plantNoteText, setPlantNoteText] = useState('');
   const [farmNoteForm, setFarmNoteForm] = useState({
     type: 'general' as 'fertilization' | 'irrigation' | 'weeding' | 'harvesting' | 'general',
     description: '',
@@ -538,6 +540,41 @@ export const FarmView = () => {
             selectedPipelinePoints={selectedPipelinePoints}
             onSelectedPipelinePointsChange={setSelectedPipelinePoints}
             onBuildingClick={setSelectedBuildingId}
+            onPlantClick={(configId, row, col) => {
+              // Find or create plant instance
+              const plantId = `${configId}-${row}-${col}`;
+              let plant = farm.plants.find(p => p.id === plantId);
+
+              if (!plant) {
+                // Create a new plant instance
+                const config = farm.plantConfigurations.find(c => c.id === configId);
+                if (config) {
+                  const startPos = typeof config.startingCorner === 'string'
+                    ? { x: 0, y: 0 } // Will be calculated properly
+                    : config.startingCorner;
+
+                  plant = {
+                    id: plantId,
+                    configId,
+                    position: {
+                      x: startPos.x + col * config.spacingBetweenColumns,
+                      y: startPos.y + row * config.spacingBetweenRows
+                    },
+                    layer: config.layer,
+                    notes: {
+                      health: 'good',
+                      notes: []
+                    }
+                  };
+
+                  updateFarm(farm.id, {
+                    plants: [...farm.plants, plant]
+                  });
+                }
+              }
+
+              setSelectedPlantId(plantId);
+            }}
           />
         </motion.div>
 
@@ -1675,6 +1712,276 @@ export const FarmView = () => {
             </motion.div>
           </div>
         )}
+
+        {/* Plant Notes Modal */}
+        {selectedPlantId && (() => {
+          const plant = farm.plants.find(p => p.id === selectedPlantId);
+          const config = plant ? farm.plantConfigurations.find(c => c.id === plant.configId) : null;
+
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                    🌳 Plant Details
+                  </h2>
+                  <button
+                    onClick={() => setSelectedPlantId(null)}
+                    className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {plant && config && (
+                  <>
+                    {/* Plant Info */}
+                    <div className="mb-6 p-4 bg-farm-green-50 dark:bg-farm-green-900/20 rounded-lg border border-farm-green-500">
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">
+                        {config.category === 'tree' ? '🌴' : config.category === 'plant' ? '🌿' : '🌾'} {config.plantType}
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">Category:</span>
+                          <span className="ml-2 font-semibold text-gray-800 dark:text-gray-100 capitalize">{config.category}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">Layer:</span>
+                          <span className="ml-2 font-semibold text-gray-800 dark:text-gray-100">{config.layer}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">Configuration:</span>
+                          <span className="ml-2 font-semibold text-gray-800 dark:text-gray-100">{config.name}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">Position:</span>
+                          <span className="ml-2 font-semibold text-gray-800 dark:text-gray-100">
+                            ({Math.round(plant.position.x)}, {Math.round(plant.position.y)})
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Health Status */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Health Status
+                      </label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {(['excellent', 'good', 'fair', 'poor'] as const).map(status => (
+                          <button
+                            key={status}
+                            onClick={() => {
+                              const updatedPlants = farm.plants.map(p =>
+                                p.id === selectedPlantId
+                                  ? { ...p, notes: { ...p.notes, health: status } }
+                                  : p
+                              );
+                              updateFarm(farm.id, { plants: updatedPlants });
+                            }}
+                            className={`px-4 py-2 rounded-lg font-semibold transition-colors capitalize ${
+                              plant.notes?.health === status
+                                ? status === 'excellent'
+                                  ? 'bg-green-600 text-white'
+                                  : status === 'good'
+                                  ? 'bg-blue-600 text-white'
+                                  : status === 'fair'
+                                  ? 'bg-yellow-600 text-white'
+                                  : 'bg-red-600 text-white'
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            {status}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Age */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Age (years)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={plant.notes?.age || ''}
+                        onChange={(e) => {
+                          const updatedPlants = farm.plants.map(p =>
+                            p.id === selectedPlantId
+                              ? { ...p, notes: { ...p.notes!, age: parseFloat(e.target.value) || undefined } }
+                              : p
+                          );
+                          updateFarm(farm.id, { plants: updatedPlants });
+                        }}
+                        className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                        placeholder="Enter age in years"
+                      />
+                    </div>
+
+                    {/* Last Manured */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Last Fertilized/Manured
+                      </label>
+                      <input
+                        type="date"
+                        value={plant.notes?.lastManured ? new Date(plant.notes.lastManured).toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          const updatedPlants = farm.plants.map(p =>
+                            p.id === selectedPlantId
+                              ? { ...p, notes: { ...p.notes!, lastManured: e.target.value ? new Date(e.target.value) : undefined } }
+                              : p
+                          );
+                          updateFarm(farm.id, { plants: updatedPlants });
+                        }}
+                        className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                      />
+                      {plant.notes?.lastManured && (
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                          Last fertilized {Math.floor((Date.now() - new Date(plant.notes.lastManured).getTime()) / (1000 * 60 * 60 * 24))} days ago
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Disease Status */}
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Disease Status
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={plant.notes?.diseased || false}
+                            onChange={(e) => {
+                              const updatedPlants = farm.plants.map(p =>
+                                p.id === selectedPlantId
+                                  ? { ...p, notes: { ...p.notes!, diseased: e.target.checked, diseaseType: e.target.checked ? p.notes?.diseaseType : undefined } }
+                                  : p
+                              );
+                              updateFarm(farm.id, { plants: updatedPlants });
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-red-600 focus:ring-red-500"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Diseased</span>
+                        </label>
+                      </div>
+                      {plant.notes?.diseased && (
+                        <input
+                          type="text"
+                          value={plant.notes?.diseaseType || ''}
+                          onChange={(e) => {
+                            const updatedPlants = farm.plants.map(p =>
+                              p.id === selectedPlantId
+                                ? { ...p, notes: { ...p.notes!, diseaseType: e.target.value } }
+                                : p
+                            );
+                            updateFarm(farm.id, { plants: updatedPlants });
+                          }}
+                          className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="Enter disease type or symptoms"
+                        />
+                      )}
+                    </div>
+
+                    {/* Notes */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Add Note
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={plantNoteText}
+                          onChange={(e) => setPlantNoteText(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && plantNoteText.trim()) {
+                              const updatedPlants = farm.plants.map(p =>
+                                p.id === selectedPlantId
+                                  ? { ...p, notes: { ...p.notes!, notes: [...(p.notes?.notes || []), plantNoteText.trim()] } }
+                                  : p
+                              );
+                              updateFarm(farm.id, { plants: updatedPlants });
+                              setPlantNoteText('');
+                            }
+                          }}
+                          className="flex-1 px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                          placeholder="E.g., Pruned lower branches, Applied pesticide, etc."
+                        />
+                        <button
+                          onClick={() => {
+                            if (plantNoteText.trim()) {
+                              const updatedPlants = farm.plants.map(p =>
+                                p.id === selectedPlantId
+                                  ? { ...p, notes: { ...p.notes!, notes: [...(p.notes?.notes || []), plantNoteText.trim()] } }
+                                  : p
+                              );
+                              updateFarm(farm.id, { plants: updatedPlants });
+                              setPlantNoteText('');
+                            }
+                          }}
+                          className="px-4 py-2 bg-farm-green-600 hover:bg-farm-green-700 text-white rounded-lg font-semibold transition-colors"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Notes List */}
+                    {plant.notes?.notes && plant.notes.notes.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Previous Notes</h4>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {plant.notes.notes.slice().reverse().map((note, index) => (
+                            <div
+                              key={index}
+                              className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex items-start justify-between group"
+                            >
+                              <p className="text-sm text-gray-700 dark:text-gray-300">{note}</p>
+                              <button
+                                onClick={() => {
+                                  const noteIndex = plant.notes!.notes.length - 1 - index;
+                                  const updatedPlants = farm.plants.map(p =>
+                                    p.id === selectedPlantId
+                                      ? { ...p, notes: { ...p.notes!, notes: p.notes!.notes.filter((_, i) => i !== noteIndex) } }
+                                      : p
+                                  );
+                                  updateFarm(farm.id, { plants: updatedPlants });
+                                }}
+                                className="opacity-0 group-hover:opacity-100 ml-2 text-red-500 hover:text-red-700 transition-opacity"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-500 rounded-lg">
+                      <p className="text-sm text-blue-800 dark:text-blue-300 font-semibold mb-2">
+                        💡 Plant Care Tips
+                      </p>
+                      <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+                        <li>• Monitor health status regularly</li>
+                        <li>• Track fertilization schedule for optimal growth</li>
+                        <li>• Record disease symptoms early for treatment</li>
+                        <li>• Keep notes on pruning, watering, and maintenance</li>
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
