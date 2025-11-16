@@ -341,10 +341,94 @@ export const FarmRenderer = ({
     });
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!dragState.isDragging || !isEditMode) return;
+  // Resize event handler for buildings
+  const handleResizeMouseDown = (
+    e: React.MouseEvent<SVGElement>,
+    elementId: string,
+    corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
+    currentSize: { width: number; height: number }
+  ) => {
+    if (!isEditMode) return;
+    e.stopPropagation();
 
     const svgPos = getSvgMousePosition(e);
+
+    setDragState({
+      isDragging: false,
+      elementType: 'building',
+      elementId,
+      startX: svgPos.x,
+      startY: svgPos.y,
+      offsetX: 0,
+      offsetY: 0,
+      isResizing: true,
+      resizeCorner: corner,
+      originalSize: currentSize,
+    });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if ((!dragState.isDragging && !dragState.isResizing) || !isEditMode) return;
+
+    const svgPos = getSvgMousePosition(e);
+
+    // Handle resizing
+    if (dragState.isResizing && dragState.elementType === 'building' && dragState.resizeCorner && dragState.originalSize) {
+      const building = farm.buildings.find(b => b.id === dragState.elementId);
+      if (!building) return;
+
+      const deltaX = (svgPos.x - dragState.startX) / bounds.scale;
+      const deltaY = (svgPos.y - dragState.startY) / bounds.scale;
+
+      // Convert cents to coordinate units for calculation
+      const scale = Math.sqrt(435.6);
+
+      let newWidth = dragState.originalSize.width;
+      let newHeight = dragState.originalSize.height;
+      let newPosition = { ...building.position };
+
+      // Calculate new size and position based on which corner is being dragged
+      switch (dragState.resizeCorner) {
+        case 'top-left':
+          newWidth = Math.max(1, dragState.originalSize.width - deltaX / scale);
+          newHeight = Math.max(1, dragState.originalSize.height - deltaY / scale);
+          newPosition = {
+            x: building.position.x + deltaX,
+            y: building.position.y + deltaY
+          };
+          break;
+        case 'top-right':
+          newWidth = Math.max(1, dragState.originalSize.width + deltaX / scale);
+          newHeight = Math.max(1, dragState.originalSize.height - deltaY / scale);
+          newPosition = {
+            x: building.position.x,
+            y: building.position.y + deltaY
+          };
+          break;
+        case 'bottom-left':
+          newWidth = Math.max(1, dragState.originalSize.width - deltaX / scale);
+          newHeight = Math.max(1, dragState.originalSize.height + deltaY / scale);
+          newPosition = {
+            x: building.position.x + deltaX,
+            y: building.position.y
+          };
+          break;
+        case 'bottom-right':
+          newWidth = Math.max(1, dragState.originalSize.width + deltaX / scale);
+          newHeight = Math.max(1, dragState.originalSize.height + deltaY / scale);
+          break;
+      }
+
+      const updatedBuildings = farm.buildings.map(b =>
+        b.id === dragState.elementId
+          ? { ...b, size: { width: newWidth, height: newHeight }, position: newPosition }
+          : b
+      );
+      updateFarm(farm.id, { buildings: updatedBuildings });
+      return;
+    }
+
+    // Handle dragging
     const newSvgX = svgPos.x - dragState.offsetX;
     const newSvgY = svgPos.y - dragState.offsetY;
     const farmPos = inverseTransformPoint(newSvgX, newSvgY);
@@ -379,6 +463,24 @@ export const FarmRenderer = ({
   };
 
   const handleMouseUp = (e: MouseEvent) => {
+    if (dragState.isResizing) {
+      // Finalize resize
+      setDragState({
+        isDragging: false,
+        elementType: null,
+        elementId: null,
+        pointIndex: undefined,
+        startX: 0,
+        startY: 0,
+        offsetX: 0,
+        offsetY: 0,
+        isResizing: false,
+        resizeCorner: undefined,
+        originalSize: undefined,
+      });
+      return;
+    }
+
     if (dragState.isDragging) {
       const svgPos = getSvgMousePosition(e);
       const newSvgX = svgPos.x - dragState.offsetX;
@@ -445,9 +547,9 @@ export const FarmRenderer = ({
     }
   };
 
-  // Add global mouse event listeners for drag
+  // Add global mouse event listeners for drag and resize
   useEffect(() => {
-    if (isEditMode && dragState.isDragging) {
+    if (isEditMode && (dragState.isDragging || dragState.isResizing)) {
       const handleMove = (e: MouseEvent) => handleMouseMove(e);
       const handleUp = (e: MouseEvent) => handleMouseUp(e);
 
@@ -459,7 +561,7 @@ export const FarmRenderer = ({
         window.removeEventListener('mouseup', handleUp);
       };
     }
-  }, [dragState.isDragging, isEditMode]);
+  }, [dragState.isDragging, dragState.isResizing, isEditMode]);
 
   // Convert position string to coordinates
   const getPositionCoordinates = (position: string | Point): Point => {
@@ -602,6 +704,76 @@ export const FarmRenderer = ({
               </text>
             </g>
           )}
+
+          {/* Resize handles in Edit Mode */}
+          {isEditMode && !building.locked && (() => {
+            // Calculate actual building corners based on size
+            const scale = Math.sqrt(435.6); // Convert cents to coordinate units
+            const buildingWidth = building.size.width * scale;
+            const buildingHeight = building.size.height * scale;
+
+            // Calculate corner positions in farm coordinates
+            const topLeft = transformPoint(building.position.x, building.position.y);
+            const topRight = transformPoint(building.position.x + buildingWidth, building.position.y);
+            const bottomLeft = transformPoint(building.position.x, building.position.y + buildingHeight);
+            const bottomRight = transformPoint(building.position.x + buildingWidth, building.position.y + buildingHeight);
+
+            return (
+              <>
+                {/* Top-left resize handle */}
+                <circle
+                  cx={topLeft.x}
+                  cy={topLeft.y}
+                  r="6"
+                  fill="#3b82f6"
+                  stroke="white"
+                  strokeWidth="2"
+                  style={{ cursor: 'nw-resize' }}
+                  className="opacity-0 hover:opacity-100 transition-opacity"
+                  onMouseDown={(e) => handleResizeMouseDown(e, building.id, 'top-left', building.size)}
+                />
+
+                {/* Top-right resize handle */}
+                <circle
+                  cx={topRight.x}
+                  cy={topRight.y}
+                  r="6"
+                  fill="#3b82f6"
+                  stroke="white"
+                  strokeWidth="2"
+                  style={{ cursor: 'ne-resize' }}
+                  className="opacity-0 hover:opacity-100 transition-opacity"
+                  onMouseDown={(e) => handleResizeMouseDown(e, building.id, 'top-right', building.size)}
+                />
+
+                {/* Bottom-left resize handle */}
+                <circle
+                  cx={bottomLeft.x}
+                  cy={bottomLeft.y}
+                  r="6"
+                  fill="#3b82f6"
+                  stroke="white"
+                  strokeWidth="2"
+                  style={{ cursor: 'sw-resize' }}
+                  className="opacity-0 hover:opacity-100 transition-opacity"
+                  onMouseDown={(e) => handleResizeMouseDown(e, building.id, 'bottom-left', building.size)}
+                />
+
+                {/* Bottom-right resize handle */}
+                <circle
+                  cx={bottomRight.x}
+                  cy={bottomRight.y}
+                  r="6"
+                  fill="#3b82f6"
+                  stroke="white"
+                  strokeWidth="2"
+                  style={{ cursor: 'se-resize' }}
+                  className="opacity-0 hover:opacity-100 transition-opacity"
+                  onMouseDown={(e) => handleResizeMouseDown(e, building.id, 'bottom-right', building.size)}
+                />
+              </>
+            );
+          })()}
         </g>
       );
     });
