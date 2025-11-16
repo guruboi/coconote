@@ -49,6 +49,7 @@ export interface Building {
   };
   direction: Direction; // which direction it faces
   name?: string;
+  locked?: boolean; // for edit mode
 }
 
 // Plant/Tree configuration
@@ -64,6 +65,7 @@ export interface PlantConfiguration {
   startingCorner: string | Point; // corner to start planting from (string for predefined, Point for manual positioning)
   layer: number; // for multilayer farming (1, 2, 3, etc.)
   plantingDate?: string; // ISO date string
+  locked?: boolean; // for edit mode
 }
 
 // Individual plant/tree instance

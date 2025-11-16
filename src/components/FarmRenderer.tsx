@@ -510,49 +510,95 @@ export const FarmRenderer = ({
       };
 
       return (
-        <g
-          key={building.id}
-          style={{ cursor: isEditMode ? 'grab' : 'pointer' }}
-          opacity={isDragging ? 0.7 : 1}
-          onMouseDown={(e) => isEditMode && handleMouseDown(e, 'building', building.id, building.position.x, building.position.y)}
-          onClick={(e) => {
-            if (!isEditMode && onBuildingClick) {
-              e.stopPropagation();
-              onBuildingClick(building.id);
-            }
-          }}
-        >
-          <rect
-            x={transformed.x - 20}
-            y={transformed.y - 20}
-            width={40}
-            height={40}
-            fill="rgba(139, 92, 46, 0.3)"
-            stroke="#8b5c2e"
-            strokeWidth={isDragging ? 3 : 2}
-            rx={4}
-          />
-          <text
-            x={transformed.x}
-            y={transformed.y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize="24"
-            style={{ pointerEvents: 'none' }}
+        <g key={building.id}>
+          <g
+            style={{ cursor: isEditMode && !building.locked ? 'grab' : building.locked ? 'not-allowed' : 'pointer' }}
+            opacity={isDragging ? 0.7 : building.locked ? 0.6 : 1}
+            onMouseDown={(e) => isEditMode && !building.locked && handleMouseDown(e, 'building', building.id, building.position.x, building.position.y)}
+            onClick={(e) => {
+              if (!isEditMode && onBuildingClick) {
+                e.stopPropagation();
+                onBuildingClick(building.id);
+              }
+            }}
           >
-            {iconMap[building.type] || '🏗️'}
-          </text>
-          <text
-            x={transformed.x}
-            y={transformed.y + 30}
-            textAnchor="middle"
-            fontSize="10"
-            fill="currentColor"
-            className="text-gray-700 dark:text-gray-300"
-            style={{ pointerEvents: 'none' }}
-          >
-            {building.name}
-          </text>
+            <rect
+              x={transformed.x - 20}
+              y={transformed.y - 20}
+              width={40}
+              height={40}
+              fill="rgba(139, 92, 46, 0.3)"
+              stroke={building.locked ? '#ef4444' : '#8b5c2e'}
+              strokeWidth={isDragging ? 3 : building.locked ? 2 : 2}
+              strokeDasharray={building.locked ? '4,2' : 'none'}
+              rx={4}
+            />
+            <text
+              x={transformed.x}
+              y={transformed.y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="24"
+              style={{ pointerEvents: 'none' }}
+            >
+              {iconMap[building.type] || '🏗️'}
+            </text>
+            <text
+              x={transformed.x}
+              y={transformed.y + 30}
+              textAnchor="middle"
+              fontSize="10"
+              fill="currentColor"
+              className="text-gray-700 dark:text-gray-300"
+              style={{ pointerEvents: 'none' }}
+            >
+              {building.name}
+            </text>
+            {building.locked && (
+              <text
+                x={transformed.x + 18}
+                y={transformed.y - 18}
+                fontSize="12"
+                style={{ pointerEvents: 'none' }}
+              >
+                🔒
+              </text>
+            )}
+          </g>
+
+          {/* Lock/Unlock button in Edit Mode */}
+          {isEditMode && (
+            <g
+              onClick={(e) => {
+                e.stopPropagation();
+                const updatedBuildings = farm.buildings.map(b =>
+                  b.id === building.id ? { ...b, locked: !b.locked } : b
+                );
+                updateFarm(farm.id, { buildings: updatedBuildings });
+              }}
+              style={{ cursor: 'pointer' }}
+              className="opacity-0 hover:opacity-100 transition-opacity"
+            >
+              <circle
+                cx={transformed.x + 22}
+                cy={transformed.y - 22}
+                r="10"
+                fill="rgba(255, 255, 255, 0.9)"
+                stroke="#6b7280"
+                strokeWidth="1"
+              />
+              <text
+                x={transformed.x + 22}
+                y={transformed.y - 22}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="10"
+                style={{ pointerEvents: 'none' }}
+              >
+                {building.locked ? '🔒' : '🔓'}
+              </text>
+            </g>
+          )}
         </g>
       );
     });
@@ -597,8 +643,9 @@ export const FarmRenderer = ({
                 cy={transformed.y}
                 r={6}
                 fill="rgba(34, 197, 94, 0.2)"
-                stroke="#22c55e"
+                stroke={config.locked ? '#ef4444' : '#22c55e'}
                 strokeWidth={isDragging ? 2 : 1}
+                strokeDasharray={config.locked ? '2,1' : 'none'}
                 className={!isEditMode && onPlantClick ? 'hover:fill-[rgba(34,197,94,0.4)] transition-colors' : ''}
               />
               <text
@@ -616,14 +663,54 @@ export const FarmRenderer = ({
         }
       }
 
+      // Calculate center position for lock button
+      const centerX = startPos.x + (config.columns * config.spacingBetweenColumns) / 2;
+      const centerY = startPos.y + (config.rows * config.spacingBetweenRows) / 2;
+      const transformedCenter = transformPoint(centerX, centerY);
+
       return (
-        <g
-          key={config.id}
-          style={{ cursor: isEditMode ? 'grab' : 'default' }}
-          opacity={isDragging ? 0.7 : 1}
-          onMouseDown={(e) => isEditMode && handleMouseDown(e, 'plantConfig', config.id, startPos.x, startPos.y)}
-        >
-          {plants}
+        <g key={config.id}>
+          <g
+            style={{ cursor: isEditMode && !config.locked ? 'grab' : config.locked ? 'not-allowed' : 'default' }}
+            opacity={isDragging ? 0.7 : config.locked ? 0.6 : 1}
+            onMouseDown={(e) => isEditMode && !config.locked && handleMouseDown(e, 'plantConfig', config.id, startPos.x, startPos.y)}
+          >
+            {plants}
+          </g>
+
+          {/* Lock/Unlock button in Edit Mode - appears at center of plant group */}
+          {isEditMode && (
+            <g
+              onClick={(e) => {
+                e.stopPropagation();
+                const updatedConfigs = farm.plantConfigurations.map(c =>
+                  c.id === config.id ? { ...c, locked: !c.locked } : c
+                );
+                updateFarm(farm.id, { plantConfigurations: updatedConfigs });
+              }}
+              style={{ cursor: 'pointer' }}
+              className="opacity-0 hover:opacity-100 transition-opacity"
+            >
+              <circle
+                cx={transformedCenter.x}
+                cy={transformedCenter.y}
+                r="12"
+                fill="rgba(255, 255, 255, 0.95)"
+                stroke="#6b7280"
+                strokeWidth="1.5"
+              />
+              <text
+                x={transformedCenter.x}
+                y={transformedCenter.y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="12"
+                style={{ pointerEvents: 'none' }}
+              >
+                {config.locked ? '🔒' : '🔓'}
+              </text>
+            </g>
+          )}
         </g>
       );
     });
