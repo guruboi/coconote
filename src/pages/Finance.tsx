@@ -32,6 +32,13 @@ export const Finance = () => {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [farmId, setFarmId] = useState<string>('');
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calcExpression, setCalcExpression] = useState('');
+  const [calcResult, setCalcResult] = useState<number | null>(null);
+  const [showOverview, setShowOverview] = useState(false);
+  const [overviewPeriod, setOverviewPeriod] = useState<'month' | 'year'>('month');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const totalExpense = getTotalExpense();
   const totalIncome = getTotalIncome();
@@ -101,6 +108,64 @@ export const Finance = () => {
     return icons[cat] || '💰';
   };
 
+  // Calculator function - evaluates BODMAS expressions
+  const calculateExpression = (expr: string) => {
+    try {
+      // Remove whitespace
+      const cleaned = expr.replace(/\s/g, '');
+      // Basic validation to prevent code injection
+      if (!/^[0-9+\-*/().]+$/.test(cleaned)) {
+        throw new Error('Invalid characters');
+      }
+      // Use Function constructor for safe evaluation (still be cautious!)
+      const result = Function('"use strict"; return (' + cleaned + ')')();
+      if (typeof result === 'number' && !isNaN(result)) {
+        setCalcResult(result);
+      } else {
+        setCalcResult(null);
+      }
+    } catch (e) {
+      setCalcResult(null);
+    }
+  };
+
+  // Get filtered transactions by period
+  const getTransactionsByPeriod = () => {
+    const filtered = {
+      expenses: expenses.filter(e => {
+        const eDate = new Date(e.date);
+        if (overviewPeriod === 'month') {
+          return eDate.getMonth() === selectedMonth && eDate.getFullYear() === selectedYear;
+        } else {
+          return eDate.getFullYear() === selectedYear;
+        }
+      }),
+      incomes: incomes.filter(i => {
+        const iDate = new Date(i.date);
+        if (overviewPeriod === 'month') {
+          return iDate.getMonth() === selectedMonth && iDate.getFullYear() === selectedYear;
+        } else {
+          return iDate.getFullYear() === selectedYear;
+        }
+      })
+    };
+
+    const periodExpense = filtered.expenses.reduce((sum, e) => sum + e.amount, 0);
+    const periodIncome = filtered.incomes.reduce((sum, i) => sum + i.amount, 0);
+
+    return {
+      ...filtered,
+      totalExpense: periodExpense,
+      totalIncome: periodIncome,
+      netProfit: periodIncome - periodExpense
+    };
+  };
+
+  const periodData = getTransactionsByPeriod();
+
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December'];
+
   return (
     <div className="min-h-screen bg-frost dark:bg-bg-dark p-6">
       <div className="max-w-7xl mx-auto">
@@ -144,7 +209,7 @@ export const Finance = () => {
 
         {/* Action Buttons and Filter */}
         <div className="flex flex-wrap gap-4 mb-6 justify-between items-center">
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <button
               onClick={() => openAddModal('expense')}
               className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors shadow-md"
@@ -156,6 +221,18 @@ export const Finance = () => {
               className="px-6 py-3 bg-farm-green-600 hover:bg-farm-green-700 text-pearl rounded-lg font-semibold transition-colors shadow-md"
             >
               + Add Income
+            </button>
+            <button
+              onClick={() => setShowCalculator(true)}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors shadow-md"
+            >
+              🧮 Calculator
+            </button>
+            <button
+              onClick={() => setShowOverview(true)}
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors shadow-md"
+            >
+              📊 Overview
             </button>
           </div>
 
@@ -433,6 +510,278 @@ export const Finance = () => {
                   >
                     Add {transactionType === 'expense' ? 'Expense' : 'Income'}
                   </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Calculator Modal */}
+        <AnimatePresence>
+          {showCalculator && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-md w-full shadow-2xl"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                    🧮 Calculator
+                  </h2>
+                  <button
+                    onClick={() => setShowCalculator(false)}
+                    className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Enter Expression (BODMAS)
+                    </label>
+                    <input
+                      type="text"
+                      value={calcExpression}
+                      onChange={(e) => {
+                        setCalcExpression(e.target.value);
+                        if (e.target.value.trim()) {
+                          calculateExpression(e.target.value);
+                        } else {
+                          setCalcResult(null);
+                        }
+                      }}
+                      placeholder="e.g., (100 + 50) * 2 - 25"
+                      className="w-full px-4 py-3 rounded-lg border-2 border-blue-300 dark:border-blue-600
+                                 bg-white dark:bg-bg-dark text-gray-800 dark:text-gray-100 text-lg font-mono
+                                 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Supports: + - * / ( )
+                    </p>
+                  </div>
+
+                  {calcResult !== null && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border-2 border-blue-500"
+                    >
+                      <p className="text-sm text-blue-800 dark:text-blue-300 mb-1">Result:</p>
+                      <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 font-mono">
+                        {calcResult.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setAmount(calcResult.toString());
+                          setShowCalculator(false);
+                          setShowAddModal(true);
+                        }}
+                        className="mt-3 w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors text-sm"
+                      >
+                        Use in Transaction
+                      </button>
+                    </motion.div>
+                  )}
+
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                      Examples:
+                    </p>
+                    <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 font-mono">
+                      <li>• 100 + 200 = 300</li>
+                      <li>• 50 * 3 = 150</li>
+                      <li>• (100 + 50) * 2 = 300</li>
+                      <li>• 1000 / 4 - 50 = 200</li>
+                    </ul>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Overview Modal */}
+        <AnimatePresence>
+          {showOverview && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-4xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                    📊 Financial Overview
+                  </h2>
+                  <button
+                    onClick={() => setShowOverview(false)}
+                    className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Period Selector */}
+                <div className="flex gap-4 mb-6 flex-wrap">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setOverviewPeriod('month')}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                        overviewPeriod === 'month'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      onClick={() => setOverviewPeriod('year')}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                        overviewPeriod === 'year'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      Yearly
+                    </button>
+                  </div>
+
+                  {overviewPeriod === 'month' && (
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                      className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                                 bg-white dark:bg-bg-dark text-gray-800 dark:text-gray-100"
+                    >
+                      {monthNames.map((month, index) => (
+                        <option key={index} value={index}>{month}</option>
+                      ))}
+                    </select>
+                  )}
+
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                    className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+                               bg-white dark:bg-bg-dark text-gray-800 dark:text-gray-100"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Overview Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border-2 border-red-500">
+                    <p className="text-sm text-red-800 dark:text-red-300 mb-1">Total Expense</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      ₹{periodData.totalExpense.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                      {periodData.expenses.length} transactions
+                    </p>
+                  </div>
+
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border-2 border-green-500">
+                    <p className="text-sm text-green-800 dark:text-green-300 mb-1">Total Income</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      ₹{periodData.totalIncome.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      {periodData.incomes.length} transactions
+                    </p>
+                  </div>
+
+                  <div className={`p-4 rounded-lg border-2 ${
+                    periodData.netProfit >= 0
+                      ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-500'
+                      : 'bg-gray-50 dark:bg-gray-800 border-gray-500'
+                  }`}>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">Net Profit</p>
+                    <p className={`text-2xl font-bold ${
+                      periodData.netProfit >= 0 ? 'text-purple-600' : 'text-gray-600'
+                    }`}>
+                      ₹{periodData.netProfit.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      {overviewPeriod === 'month'
+                        ? `${monthNames[selectedMonth]} ${selectedYear}`
+                        : `Year ${selectedYear}`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Category Breakdown */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Expense Breakdown */}
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+                      Expense by Category
+                    </h3>
+                    <div className="space-y-2">
+                      {expenseCategories.map(cat => {
+                        const amount = periodData.expenses
+                          .filter(e => e.category === cat)
+                          .reduce((sum, e) => sum + e.amount, 0);
+                        if (amount === 0) return null;
+                        const percentage = periodData.totalExpense > 0
+                          ? (amount / periodData.totalExpense * 100).toFixed(1)
+                          : 0;
+                        return (
+                          <div key={cat} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">{getCategoryIcon(cat)}</span>
+                              <span className="text-sm font-medium text-gray-800 dark:text-gray-100 capitalize">
+                                {cat}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-red-600">₹{amount.toLocaleString()}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{percentage}%</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Income Breakdown */}
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+                      Income by Source
+                    </h3>
+                    <div className="space-y-2">
+                      {incomeCategories.map(cat => {
+                        const amount = periodData.incomes
+                          .filter(i => i.source === cat)
+                          .reduce((sum, i) => sum + i.amount, 0);
+                        if (amount === 0) return null;
+                        const percentage = periodData.totalIncome > 0
+                          ? (amount / periodData.totalIncome * 100).toFixed(1)
+                          : 0;
+                        return (
+                          <div key={cat} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">{getCategoryIcon(cat)}</span>
+                              <span className="text-sm font-medium text-gray-800 dark:text-gray-100 capitalize">
+                                {cat}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-green-600">₹{amount.toLocaleString()}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{percentage}%</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             </div>
