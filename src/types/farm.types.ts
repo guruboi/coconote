@@ -49,6 +49,7 @@ export interface Building {
   };
   direction: Direction; // which direction it faces
   name?: string;
+  locked?: boolean; // prevent editing in edit mode
 }
 
 // Plant/Tree configuration

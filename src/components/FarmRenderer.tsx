@@ -34,6 +34,15 @@ interface DragState {
   offsetY: number;
 }
 
+interface ResizeState {
+  isResizing: boolean;
+  buildingId: string | null;
+  corner: 'nw' | 'ne' | 'sw' | 'se' | null;
+  startPos: Point;
+  startSize: { width: number; height: number };
+  startBuildingPos: Point;
+}
+
 export const FarmRenderer = ({
   farm,
   width = 800,
@@ -65,6 +74,14 @@ export const FarmRenderer = ({
     startY: 0,
     offsetX: 0,
     offsetY: 0,
+  });
+  const [resizeState, setResizeState] = useState<ResizeState>({
+    isResizing: false,
+    buildingId: null,
+    corner: null,
+    startPos: { x: 0, y: 0 },
+    startSize: { width: 0, height: 0 },
+    startBuildingPos: { x: 0, y: 0 },
   });
 
   // Calculate the bounding box of the farm
@@ -322,6 +339,12 @@ export const FarmRenderer = ({
     if (!isEditMode) return;
     e.stopPropagation();
 
+    // Check if building is locked
+    if (elementType === 'building') {
+      const building = farm.buildings.find(b => b.id === elementId);
+      if (building?.locked) return;
+    }
+
     const svgPos = getSvgMousePosition(e);
     const currentSvgPos = transformPoint(currentX, currentY);
 
@@ -456,6 +479,118 @@ export const FarmRenderer = ({
     }
   }, [dragState.isDragging, isEditMode]);
 
+  // Resize handlers for buildings
+  const handleResizeStart = (
+    e: React.MouseEvent<SVGElement>,
+    buildingId: string,
+    corner: 'nw' | 'ne' | 'sw' | 'se'
+  ) => {
+    if (!isEditMode) return;
+    e.stopPropagation();
+
+    const building = farm.buildings.find(b => b.id === buildingId);
+    if (!building || building.locked) return;
+
+    const svgPos = getSvgMousePosition(e);
+    const farmPos = inverseTransformPoint(svgPos.x, svgPos.y);
+
+    setResizeState({
+      isResizing: true,
+      buildingId,
+      corner,
+      startPos: farmPos,
+      startSize: building.size,
+      startBuildingPos: building.position,
+    });
+  };
+
+  const handleResizeMove = (e: MouseEvent) => {
+    if (!resizeState.isResizing || !isEditMode) return;
+
+    const svgPos = getSvgMousePosition(e);
+    const farmPos = inverseTransformPoint(svgPos.x, svgPos.y);
+
+    const building = farm.buildings.find(b => b.id === resizeState.buildingId);
+    if (!building) return;
+
+    const scale = Math.sqrt(435.6); // Convert cents to coordinate units
+    let newWidth = resizeState.startSize.width;
+    let newHeight = resizeState.startSize.height;
+    let newPosition = { ...resizeState.startBuildingPos };
+
+    const dx = (farmPos.x - resizeState.startPos.x) / scale;
+    const dy = (farmPos.y - resizeState.startPos.y) / scale;
+
+    // Minimum size constraints
+    const minSize = 2; // 2 cents minimum
+
+    if (resizeState.corner === 'se') {
+      // Southeast: increase width and height
+      newWidth = Math.max(minSize, resizeState.startSize.width + dx);
+      newHeight = Math.max(minSize, resizeState.startSize.height + dy);
+    } else if (resizeState.corner === 'sw') {
+      // Southwest: decrease width, increase height, move position
+      newWidth = Math.max(minSize, resizeState.startSize.width - dx);
+      newHeight = Math.max(minSize, resizeState.startSize.height + dy);
+      if (newWidth > minSize) {
+        newPosition.x = resizeState.startBuildingPos.x + dx * scale;
+      }
+    } else if (resizeState.corner === 'ne') {
+      // Northeast: increase width, decrease height, move position
+      newWidth = Math.max(minSize, resizeState.startSize.width + dx);
+      newHeight = Math.max(minSize, resizeState.startSize.height - dy);
+      if (newHeight > minSize) {
+        newPosition.y = resizeState.startBuildingPos.y + dy * scale;
+      }
+    } else if (resizeState.corner === 'nw') {
+      // Northwest: decrease width and height, move position
+      newWidth = Math.max(minSize, resizeState.startSize.width - dx);
+      newHeight = Math.max(minSize, resizeState.startSize.height - dy);
+      if (newWidth > minSize) {
+        newPosition.x = resizeState.startBuildingPos.x + dx * scale;
+      }
+      if (newHeight > minSize) {
+        newPosition.y = resizeState.startBuildingPos.y + dy * scale;
+      }
+    }
+
+    const updatedBuildings = farm.buildings.map(b =>
+      b.id === resizeState.buildingId
+        ? { ...b, size: { width: newWidth, height: newHeight }, position: newPosition }
+        : b
+    );
+    updateFarm(farm.id, { buildings: updatedBuildings });
+  };
+
+  const handleResizeEnd = () => {
+    if (resizeState.isResizing) {
+      setResizeState({
+        isResizing: false,
+        buildingId: null,
+        corner: null,
+        startPos: { x: 0, y: 0 },
+        startSize: { width: 0, height: 0 },
+        startBuildingPos: { x: 0, y: 0 },
+      });
+    }
+  };
+
+  // Add global mouse event listeners for resize
+  useEffect(() => {
+    if (isEditMode && resizeState.isResizing) {
+      const handleMove = (e: MouseEvent) => handleResizeMove(e);
+      const handleUp = () => handleResizeEnd();
+
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleUp);
+
+      return () => {
+        window.removeEventListener('mousemove', handleMove);
+        window.removeEventListener('mouseup', handleUp);
+      };
+    }
+  }, [resizeState.isResizing, isEditMode]);
+
   // Convert position string to coordinates
   const getPositionCoordinates = (position: string | Point): Point => {
     // If already a Point object, return it
@@ -499,6 +634,7 @@ export const FarmRenderer = ({
       // Building position is a Point object, not a string
       const transformed = transformPoint(building.position.x, building.position.y);
       const isDragging = dragState.isDragging && dragState.elementType === 'building' && dragState.elementId === building.id;
+      const isResizing = resizeState.isResizing && resizeState.buildingId === building.id;
 
       const iconMap: Record<string, string> = {
         'house': '🏠',
@@ -507,50 +643,109 @@ export const FarmRenderer = ({
         'motor-room': '⚡',
       };
 
+      // Calculate building dimensions in SVG coordinates
+      const scale = Math.sqrt(435.6);
+      const widthInCoords = building.size.width * scale;
+      const heightInCoords = building.size.height * scale;
+      const widthInSvg = widthInCoords * bounds.scale;
+      const heightInSvg = heightInCoords * bounds.scale;
+
+      // Building corners for resize handles
+      const corners = [
+        { corner: 'nw' as const, x: transformed.x - widthInSvg / 2, y: transformed.y - heightInSvg / 2 },
+        { corner: 'ne' as const, x: transformed.x + widthInSvg / 2, y: transformed.y - heightInSvg / 2 },
+        { corner: 'sw' as const, x: transformed.x - widthInSvg / 2, y: transformed.y + heightInSvg / 2 },
+        { corner: 'se' as const, x: transformed.x + widthInSvg / 2, y: transformed.y + heightInSvg / 2 },
+      ];
+
+      const cursor = building.locked ? 'not-allowed' : (isEditMode ? 'grab' : 'pointer');
+
       return (
-        <g
-          key={building.id}
-          style={{ cursor: isEditMode ? 'grab' : 'pointer' }}
-          opacity={isDragging ? 0.7 : 1}
-          onMouseDown={(e) => isEditMode && handleMouseDown(e, 'building', building.id, building.position.x, building.position.y)}
-          onClick={(e) => {
-            if (!isEditMode && onBuildingClick) {
-              e.stopPropagation();
-              onBuildingClick(building.id);
-            }
-          }}
-        >
-          <rect
-            x={transformed.x - 20}
-            y={transformed.y - 20}
-            width={40}
-            height={40}
-            fill="rgba(139, 92, 46, 0.3)"
-            stroke="#8b5c2e"
-            strokeWidth={isDragging ? 3 : 2}
-            rx={4}
-          />
-          <text
-            x={transformed.x}
-            y={transformed.y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize="24"
-            style={{ pointerEvents: 'none' }}
+        <g key={building.id}>
+          {/* Building background with improved border */}
+          <g
+            style={{ cursor }}
+            opacity={isDragging || isResizing ? 0.7 : 1}
+            onMouseDown={(e) => isEditMode && !building.locked && handleMouseDown(e, 'building', building.id, building.position.x, building.position.y)}
+            onClick={(e) => {
+              if (!isEditMode && onBuildingClick) {
+                e.stopPropagation();
+                onBuildingClick(building.id);
+              }
+            }}
           >
-            {iconMap[building.type] || '🏗️'}
-          </text>
-          <text
-            x={transformed.x}
-            y={transformed.y + 30}
-            textAnchor="middle"
-            fontSize="10"
-            fill="currentColor"
-            className="text-gray-700 dark:text-gray-300"
-            style={{ pointerEvents: 'none' }}
-          >
-            {building.name}
-          </text>
+            {/* Outer glow for visibility */}
+            <rect
+              x={transformed.x - widthInSvg / 2 - 2}
+              y={transformed.y - heightInSvg / 2 - 2}
+              width={widthInSvg + 4}
+              height={heightInSvg + 4}
+              fill="none"
+              stroke="rgba(139, 92, 46, 0.3)"
+              strokeWidth={4}
+              rx={6}
+            />
+            {/* Main building rect */}
+            <rect
+              x={transformed.x - widthInSvg / 2}
+              y={transformed.y - heightInSvg / 2}
+              width={widthInSvg}
+              height={heightInSvg}
+              fill="rgba(139, 92, 46, 0.25)"
+              stroke={building.locked ? "#dc2626" : "#8b5c2e"}
+              strokeWidth={isDragging || isResizing ? 3 : 2}
+              rx={4}
+            />
+            {/* Icon */}
+            <text
+              x={transformed.x}
+              y={transformed.y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="24"
+              style={{ pointerEvents: 'none' }}
+            >
+              {iconMap[building.type] || '🏗️'}
+            </text>
+            {/* Lock indicator */}
+            {building.locked && (
+              <text
+                x={transformed.x - widthInSvg / 2 + 10}
+                y={transformed.y - heightInSvg / 2 + 10}
+                fontSize="14"
+                style={{ pointerEvents: 'none' }}
+              >
+                🔒
+              </text>
+            )}
+            {/* Name label */}
+            <text
+              x={transformed.x}
+              y={transformed.y + heightInSvg / 2 + 15}
+              textAnchor="middle"
+              fontSize="10"
+              fill="currentColor"
+              className="text-gray-700 dark:text-gray-300"
+              style={{ pointerEvents: 'none' }}
+            >
+              {building.name}
+            </text>
+          </g>
+
+          {/* Resize handles - only show in edit mode for unlocked buildings */}
+          {isEditMode && !building.locked && corners.map((c) => (
+            <circle
+              key={`${building.id}-${c.corner}`}
+              cx={c.x}
+              cy={c.y}
+              r={6}
+              fill="white"
+              stroke="#8b5c2e"
+              strokeWidth={2}
+              style={{ cursor: `${c.corner}-resize` }}
+              onMouseDown={(e) => handleResizeStart(e, building.id, c.corner)}
+            />
+          ))}
         </g>
       );
     });
@@ -581,13 +776,23 @@ export const FarmRenderer = ({
 
           plants.push(
             <g key={`${config.id}-${row}-${col}`}>
+              {/* Outer glow for visibility */}
               <circle
                 cx={transformed.x}
                 cy={transformed.y}
-                r={6}
+                r={9}
+                fill="none"
+                stroke="rgba(34, 197, 94, 0.25)"
+                strokeWidth={3}
+              />
+              {/* Main circle */}
+              <circle
+                cx={transformed.x}
+                cy={transformed.y}
+                r={7}
                 fill="rgba(34, 197, 94, 0.2)"
                 stroke="#22c55e"
-                strokeWidth={isDragging ? 2 : 1}
+                strokeWidth={isDragging ? 2.5 : 1.5}
               />
               <text
                 x={transformed.x}
@@ -638,17 +843,27 @@ export const FarmRenderer = ({
       return (
         <g
           key={element.id}
-          style={{ cursor: isEditMode ? 'grab' : 'default' }}
+          style={{ cursor: isEditMode && !element.locked ? 'grab' : 'default' }}
           opacity={isDragging ? 0.7 : 1}
-          onMouseDown={(e) => isEditMode && handleMouseDown(e, 'otherElement', element.id, pos.x, pos.y)}
+          onMouseDown={(e) => isEditMode && !element.locked && handleMouseDown(e, 'otherElement', element.id, pos.x, pos.y)}
         >
+          {/* Outer glow for visibility */}
           <circle
             cx={transformed.x}
             cy={transformed.y}
-            r={16}
+            r={19}
+            fill="none"
+            stroke="rgba(59, 130, 246, 0.25)"
+            strokeWidth={4}
+          />
+          {/* Main circle */}
+          <circle
+            cx={transformed.x}
+            cy={transformed.y}
+            r={17}
             fill="rgba(59, 130, 246, 0.2)"
-            stroke="#3b82f6"
-            strokeWidth={isDragging ? 3 : 2}
+            stroke={element.locked ? "#dc2626" : "#3b82f6"}
+            strokeWidth={isDragging ? 3 : 2.5}
           />
           <text
             x={transformed.x}
@@ -660,6 +875,17 @@ export const FarmRenderer = ({
           >
             {iconMap[element.type] || '📍'}
           </text>
+          {/* Lock indicator */}
+          {element.locked && (
+            <text
+              x={transformed.x + 12}
+              y={transformed.y - 12}
+              fontSize="12"
+              style={{ pointerEvents: 'none' }}
+            >
+              🔒
+            </text>
+          )}
           <text
             x={transformed.x}
             y={transformed.y + 28}

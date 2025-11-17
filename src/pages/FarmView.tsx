@@ -42,6 +42,8 @@ export const FarmView = () => {
   const [selectedPathPoints, setSelectedPathPoints] = useState<{ pathId: string; indices: number[] }[]>([]);
   const [selectedPipelinePoints, setSelectedPipelinePoints] = useState<{ pipelineId: string; indices: number[] }[]>([]);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [showPlantNotes, setShowPlantNotes] = useState(false);
+  const [selectedPlantConfigId, setSelectedPlantConfigId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!farm) {
@@ -71,6 +73,16 @@ export const FarmView = () => {
     if (farm) {
       updateFarm(farm.id, {
         buildings: farm.buildings.filter(b => b.id !== buildingId),
+      });
+    }
+  };
+
+  const handleToggleBuildingLock = (buildingId: string) => {
+    if (farm) {
+      updateFarm(farm.id, {
+        buildings: farm.buildings.map(b =>
+          b.id === buildingId ? { ...b, locked: !b.locked } : b
+        ),
       });
     }
   };
@@ -866,7 +878,7 @@ export const FarmView = () => {
               animate={{ x: 0 }}
               exit={{ x: 400 }}
               transition={{ type: 'spring', damping: 20 }}
-              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
+              className="fixed right-0 top-28 h-[calc(100vh-7rem)] w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
             >
               <ElementPalette
                 onDragStart={handleElementDragStart}
@@ -897,14 +909,30 @@ export const FarmView = () => {
                             <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
                               {building.name || building.type}
                             </span>
+                            {building.locked && (
+                              <span className="text-xs" title="Locked">🔒</span>
+                            )}
                           </div>
-                          <button
-                            onClick={() => handleDeleteBuilding(building.id)}
-                            className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                            title="Delete building"
-                          >
-                            🗑️
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleToggleBuildingLock(building.id)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                building.locked
+                                  ? 'text-yellow-600 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+                                  : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                              }`}
+                              title={building.locked ? 'Unlock building' : 'Lock building'}
+                            >
+                              {building.locked ? '🔓' : '🔒'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteBuilding(building.id)}
+                              className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                              title="Delete building"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -945,13 +973,25 @@ export const FarmView = () => {
                               </div>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDeletePlantConfig(config.id)}
-                            className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                            title="Delete configuration"
-                          >
-                            🗑️
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setSelectedPlantConfigId(config.id);
+                                setShowPlantNotes(true);
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                              title="View/edit notes"
+                            >
+                              📝
+                            </button>
+                            <button
+                              onClick={() => handleDeletePlantConfig(config.id)}
+                              className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                              title="Delete configuration"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1060,7 +1100,7 @@ export const FarmView = () => {
               animate={{ x: 0 }}
               exit={{ x: 400 }}
               transition={{ type: 'spring', damping: 20 }}
-              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
+              className="fixed right-0 top-28 h-[calc(100vh-7rem)] w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
             >
               <div className="p-6">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
@@ -1172,7 +1212,7 @@ export const FarmView = () => {
               animate={{ x: 0 }}
               exit={{ x: 400 }}
               transition={{ type: 'spring', damping: 20 }}
-              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
+              className="fixed right-0 top-28 h-[calc(100vh-7rem)] w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
             >
               <div className="p-6">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
@@ -1241,7 +1281,7 @@ export const FarmView = () => {
               animate={{ x: 0 }}
               exit={{ x: 400 }}
               transition={{ type: 'spring', damping: 20 }}
-              className="fixed right-0 top-0 h-full w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
+              className="fixed right-0 top-28 h-[calc(100vh-7rem)] w-96 bg-pearl dark:bg-bg-dark-alt shadow-2xl z-40 overflow-y-auto pt-4"
             >
               <div className="p-6">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">
@@ -1527,6 +1567,109 @@ export const FarmView = () => {
                         <p><strong>Size:</strong> {building.size.width} × {building.size.height} cents ({(building.size.width * building.size.height * 435.6).toFixed(0)} sq ft)</p>
                         <p className="mt-1"><strong>Direction:</strong> {building.direction.charAt(0).toUpperCase() + building.direction.slice(1)}</p>
                       </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </motion.div>
+          </div>
+        )}
+
+        {/* Plant Notes Modal */}
+        {showPlantNotes && selectedPlantConfigId && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-pearl dark:bg-bg-dark-alt rounded-xl p-6 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
+              {(() => {
+                const config = farm.plantConfigurations.find(c => c.id === selectedPlantConfigId);
+                if (!config) return null;
+
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                        📝 Plant Notes
+                      </h2>
+                      <button
+                        onClick={() => {
+                          setShowPlantNotes(false);
+                          setSelectedPlantConfigId(null);
+                        }}
+                        className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-2xl"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="p-4 bg-frost dark:bg-bg-dark rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-3xl">
+                            {config.category === 'tree' ? '🌴' : config.category === 'plant' ? '🌿' : '🌾'}
+                          </span>
+                          <div>
+                            <h3 className="font-semibold text-gray-800 dark:text-gray-100">{config.name}</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {config.plantType} • {config.rows}×{config.columns} = {config.rows * config.columns} plants
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Planting Date
+                        </label>
+                        <input
+                          type="date"
+                          value={config.plantingDate || ''}
+                          onChange={(e) => {
+                            updateFarm(farm.id, {
+                              plantConfigurations: farm.plantConfigurations.map(c =>
+                                c.id === selectedPlantConfigId
+                                  ? { ...c, plantingDate: e.target.value }
+                                  : c
+                              ),
+                            });
+                          }}
+                          className="w-full px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-farm-green-500"
+                        />
+                      </div>
+
+                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                          <strong>Grid Information:</strong>
+                        </p>
+                        <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                          <li>• Row spacing: {config.spacingBetweenRows} ft</li>
+                          <li>• Column spacing: {config.spacingBetweenColumns} ft</li>
+                          <li>• Total plants: {config.rows * config.columns}</li>
+                          <li>• Layer: {config.layer}</li>
+                        </ul>
+                      </div>
+
+                      <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                          <strong>ℹ️ Individual Plant Notes:</strong> The PlantNotes feature for tracking health,
+                          manuring, and diseases for individual plants will be added in the next update. For now,
+                          you can use the Farm Notes feature to track maintenance activities.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        onClick={() => {
+                          setShowPlantNotes(false);
+                          setSelectedPlantConfigId(null);
+                        }}
+                        className="px-6 py-2 bg-farm-green-600 text-white rounded-lg hover:bg-farm-green-700 transition-colors"
+                      >
+                        Close
+                      </button>
                     </div>
                   </>
                 );
